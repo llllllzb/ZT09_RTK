@@ -15,18 +15,18 @@
 
 typedef enum
 {
-	GPS_FILTER_AUTO,	//任何高精度定位
+	GPS_FILTER_CLOSE,	//关闭高精度
 	GPS_FILTER_DIFF,	//只获取差分定位
 	GPS_FILTER_FIXHOLD, //只获取固定解定位
 	GPS_FILTER_FLOAT,	//只获取浮点解定位
-
+	GPS_FILTER_AUTO,	//任何高精度定位
 }gpsFilterType_e;
 
 typedef enum
 {
 	GPS_FIXTYPE_NORMAL  = 1,	 //
 	GPS_FIXTYPE_DIFF    = 2,	 //差分定位
-	GPS_FIXTYPE_FIXHOLD = 4, //固定解定位
+	GPS_FIXTYPE_FIXHOLD = 4, 	 //固定解定位
 	GPS_FIXTYPE_FLOAT   = 5,	 //浮点解定位
 
 }gpsFixType_e;

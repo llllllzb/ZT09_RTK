@@ -1011,6 +1011,7 @@ void portGsensorCtl(uint8_t onoff)
 		startStep();
 		
 		portUpdateStep();
+		sysinfo.accStep = sysinfo.step;//每一次打开gsensor 同步一次运动判断的acc步数，不然会立马判断为acc on
 //		PWR_PeriphWakeUpCfg( ENABLE, RB_SLP_GPIO_WAKE, Long_Delay );
 //        GPIOB_ModeCfg(GSINT_PIN, GPIO_ModeIN_Floating);
 //        GPIOB_ITModeCfg(GSINT_PIN, GPIO_ITMode_RiseEdge);
@@ -1781,6 +1782,7 @@ void portClearStep(void)
         dynamicParam.step = 0;
         paramSaveAll();
         clearStep();
+        LogPrintf(DEBUG_ALL, "portClearStep");
     }
 }
 

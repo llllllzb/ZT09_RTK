@@ -1561,68 +1561,55 @@ static void doFilterInstruction(ITEM *item, char *message)
 {
 	if (item->item_data[1][0] == 0 || item->item_data[1][0] == '?')
     {
-    	if (sysparam.accurayonoff)
-    	{
-    		strcpy(message, "High precision filter is enable,");
-			if (sysparam.gpsFilterType == GPS_FILTER_DIFF)
+    		if (sysparam.gpsFilterType == GPS_FILTER_CLOSE)
+    		{
+				strcpy(message, "High precision filter is disable");
+    		}
+			else if (sysparam.gpsFilterType == GPS_FILTER_DIFF)
 			{
-				strcpy(message + strlen(message), "Filter type is difference");
+				strcpy(message, "High precision filter type is difference");
 			}
 			else if (sysparam.gpsFilterType == GPS_FILTER_FIXHOLD)
 			{
-				strcpy(message + strlen(message), "Filter type is fixhold");
+				strcpy(message, "High precision filter type is fixhold");
 			}
 			else if (sysparam.gpsFilterType == GPS_FILTER_FLOAT)
 			{
-				strcpy(message + strlen(message), "Filter type is float");
+				strcpy(message, "High precision filter type is float");
 			}
 			else	//GPS_FILTER_AUTO
 			{
-				strcpy(message + strlen(message), "Filter type is auto");
+				strcpy(message, "High precision filter type is auto");
 			}
-		}
-		else
-		{
-			strcpy(message, "High precision filter is disable");
-		}
     }
     else
     {
     
-		if (atoi(item->item_data[1]) > 0)
+		if (atoi(item->item_data[1]) == GPS_FILTER_CLOSE)
 		{
-			sysparam.accurayonoff = 1;
-			strcpy(message, "Enable high precision filter,");
+			sysparam.gpsFilterType = GPS_FILTER_CLOSE;
+			sprintf(message, "Disable high precision filter");
 		}
-		else
-		{
-			sysparam.accurayonoff = 0;
-			strcpy(message, "Disable high precision filter");
-			paramSaveAll();
-			return;
-		}
-		
-		if (atoi(item->item_data[2]) == GPS_FILTER_DIFF)
+		else if (atoi(item->item_data[1]) == GPS_FILTER_DIFF)
 		{
 			sysparam.gpsFilterType = GPS_FILTER_DIFF;
-			sprintf(message + strlen(message), "and filter type is difference");
+			sprintf(message, "Update high precision filter type to difference");
 		}
-		else if (atoi(item->item_data[2]) == GPS_FILTER_FIXHOLD)
+		else if (atoi(item->item_data[1]) == GPS_FILTER_FIXHOLD)
 		{
 			sysparam.gpsFilterType = GPS_FILTER_FIXHOLD;
-			sprintf(message + strlen(message), "and filter type is fixhold");
+			sprintf(message, "Update high precision filter type to fixhold");
 		}
-		else if (atoi(item->item_data[2]) == GPS_FILTER_FLOAT)
+		else if (atoi(item->item_data[1]) == GPS_FILTER_FLOAT)
 		{
 			sysparam.gpsFilterType = GPS_FILTER_FLOAT;
-			sprintf(message + strlen(message), "and filter type is float");
+			sprintf(message, "Update high precision filter type to float");
 		}
 		else
 		{
 			sysparam.gpsFilterType = GPS_FILTER_AUTO;
-			sprintf(message + strlen(message), "and filter type is auto");
+			sprintf(message + strlen(message), "Update high precision filter type to auto");
 		}
-		
 		paramSaveAll();		
     }
 }

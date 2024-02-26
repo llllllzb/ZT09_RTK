@@ -118,7 +118,6 @@ void paramDefaultInit(uint8_t level)
     sysparam.motionstep = 30;
     sysparam.staticStep = 30;
     sysparam.ntripEn = 1;
-    sysparam.accurayonoff = 1;
     sysparam.gpsFilterType = GPS_FILTER_AUTO;
     dynamicParamSaveAll();
     paramSaveAll();

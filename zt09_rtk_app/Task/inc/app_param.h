@@ -122,7 +122,6 @@ typedef struct
     
     uint16_t staticStep;
     uint16_t motionstep;
-	uint8_t accurayonoff;
     uint8_t gpsFilterType;
 } systemParam_s;
 

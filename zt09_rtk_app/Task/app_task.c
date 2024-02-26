@@ -695,8 +695,16 @@ static void gpsUplodOnePointTask(void)
         return;
     }
     //runtick = 0;
+    /* 关闭高精度 */
+    if (sysparam.gpsFilterType == GPS_FILTER_CLOSE)
+    {
+		if (fixtick >= 10)
+		{
+			goto UPLOAD;
+		}
+    }
 	/* DIFF */
-    if (sysparam.gpsFilterType == GPS_FILTER_DIFF)
+    else if (sysparam.gpsFilterType == GPS_FILTER_DIFF)
     {
 		if (gpsinfo->fixAccuracy == GPS_FIXTYPE_DIFF)
 		{
@@ -1936,7 +1944,7 @@ static void sysRunTimeCnt(void)
     {
         runTick = 0;
         dynamicParam.runTime++;
-        dynamicParamSaveAll();
+        portSaveStep();
     }
 }
 
@@ -2592,6 +2600,13 @@ static void rebootEveryDay(void)
     //    if (sysinfo.gpsRequest != 0)
     //        return ;
     //    portSysReset();
+    uint16 year = 0;
+    uint8  month = 0, date = 0, hour = 0, minute = 0, second = 0;
+    portGetRtcDateTime(&year, &month, &date, &hour, &minute, &second);
+    if (sysinfo.rtcUpdate == 1 && hour == 0 && minute == 0 && second == 0)
+    {
+		portClearStep();
+    }
 }
 
 

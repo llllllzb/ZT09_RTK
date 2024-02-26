@@ -739,7 +739,7 @@ void upgradeRunTask(void)
 
 void startJumpToApp(void)
 {
-    static uint8_t tick = 13;
+    static uint8_t tick = 8;
     LogPrintf(DEBUG_ALL, "startJumpToApp %d ...", tick);
     --tick;
     if (tick == 0)

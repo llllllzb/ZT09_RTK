@@ -152,7 +152,7 @@ void outputNode(void)
         nextnode = currentnode->nextnode;
         moduleState.cmd = currentnode->currentcmd;
         //Êý¾Ý·¢ËÍ
-        portUartSend(&usart0_ctl, (uint8_t *)currentnode->data, currentnode->datalen);
+        portUartSend(&usart3_ctl, (uint8_t *)currentnode->data, currentnode->datalen);
         if (currentnode->data[0] != 0X78 && currentnode->data[0] != 0x79 && currentnode->data[0] != 0x7E)
         {
             LogMessageWL(DEBUG_NET, currentnode->data, currentnode->datalen);
@@ -265,7 +265,7 @@ void modulePowerOn(void)
 {
     LogMessage(DEBUG_ALL, "modulePowerOn");
     moduleInit();
-    portUartCfg(APPUSART0, 1, 57600, moduleRecvParser);
+    portUartCfg(APPUSART3, 1, 57600, moduleRecvParser);
     POWER_ON;
     PWRKEY_HIGH;
     RSTKEY_HIGH;
@@ -284,7 +284,7 @@ static void modulePowerOffDone(void)
 {
 	LogMessage(DEBUG_ALL, "modulePowerOff Done");
 	moduleInit();
-	portUartCfg(APPUSART0, 0, 57600, NULL);
+	portUartCfg(APPUSART3, 0, 57600, NULL);
 	POWER_OFF;
 }
 
@@ -325,10 +325,11 @@ static void modulePowerOffProcess(void)
 void modulePowerOff(void)
 {
     LogMessage(DEBUG_ALL, "modulePowerOff");
-    
-	startTimer(500, modulePowerOffProcess, 0);
+    moduleInit();
+	POWER_OFF;
     RSTKEY_HIGH;
     PWRKEY_HIGH;
+    
     socketDelAll();
 }
 

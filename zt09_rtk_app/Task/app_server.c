@@ -937,6 +937,11 @@ void ntripRequestClear(void)
 
 void ntripServerRecv(char *data, uint16_t len)
 {
+	/* 在发送数据时同时又发送AT+MIPCLOSE可能会没有相应，所以在这里增加检测 */
+	if (sysinfo.ntripRequest == 0 && len != 0)
+	{
+		sendModuleCmd(MIPCLOSE_CMD, 1);
+	}
 	if (my_getstrindex(data, "200 OK", len) < 0)
 	{
 		LogPrintf(DEBUG_ALL, "Ntrip recv %d byte", len);
@@ -966,9 +971,9 @@ void ntripServerConnTask(void)
 	char sendBuff[200];
 	static uint8_t fsm = 0;
 	static uint8_t tick = 0;
-	if (sysparam.ntripEn == 0 || sysinfo.ntripRequest == 0)
+	if (sysparam.ntripEn == 0 || sysinfo.ntripRequest == 0 || sysparam.gpsFilterType == GPS_FILTER_CLOSE)
 	{
-		if (sysparam.ntripEn == 0)
+		if (sysparam.ntripEn == 0 || sysparam.gpsFilterType == GPS_FILTER_CLOSE)
 			sysinfo.ntripRequest = 0;
 		if (socketGetUsedFlag(NTRIP_LINK) == 1)
 		{
