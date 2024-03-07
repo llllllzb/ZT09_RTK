@@ -224,6 +224,7 @@ static void doStatusInstruction(ITEM *item, char *message)
     sprintf(message + strlen(message), "SIGNAL=%d;", getModuleRssi());
     sprintf(message + strlen(message), "BATTERY=%s;", getTerminalChargeState() > 0 ? "Charging" : "Uncharged");
     sprintf(message + strlen(message), "LOGIN=%s;", primaryServerIsReady() > 0 ? "Yes" : "No");
+    sprintf(message + strlen(message), "NTRIP=%s;", ntripServerIsReady() > 0 ? "Yes" : "No");
     sprintf(message + strlen(message), "STEP=%d;", sysinfo.step);
 }
 

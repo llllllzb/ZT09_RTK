@@ -60,7 +60,7 @@
 #define MODE_DONE						4
 
 //GPS_UPLOAD_GAP_MAX 以下，gps常开，以上(包含GPS_UPLOAD_GAP_MAX),周期开启
-#define GPS_UPLOAD_GAP_MAX				60
+#define GPS_UPLOAD_GAP_MAX				90
 
 #define ACC_READ		0
 #define ACC_STATE_ON	1

@@ -937,11 +937,6 @@ void ntripRequestClear(void)
 
 void ntripServerRecv(char *data, uint16_t len)
 {
-	/* 在发送数据时同时又发送AT+MIPCLOSE可能会没有相应，所以在这里增加检测 */
-	if (sysinfo.ntripRequest == 0 && len != 0)
-	{
-		sendModuleCmd(MIPCLOSE_CMD, 1);
-	}
 	if (my_getstrindex(data, "200 OK", len) < 0)
 	{
 		LogPrintf(DEBUG_ALL, "Ntrip recv %d byte", len);
@@ -964,13 +959,12 @@ void ntripServerRecv(char *data, uint16_t len)
 @return
 @note
 **************************************************/
-
+static uint8_t ntrip_ser_fsm  = 0;
+static uint8_t ntrip_ser_tick = 0;
 void ntripServerConnTask(void)
 {
 	gpsinfo_s *gpsinfo;
 	char sendBuff[200];
-	static uint8_t fsm = 0;
-	static uint8_t tick = 0;
 	if (sysparam.ntripEn == 0 || sysinfo.ntripRequest == 0 || sysparam.gpsFilterType == GPS_FILTER_CLOSE)
 	{
 		if (sysparam.ntripEn == 0 || sysparam.gpsFilterType == GPS_FILTER_CLOSE)
@@ -979,10 +973,13 @@ void ntripServerConnTask(void)
 		{
 			socketDel(NTRIP_LINK);
 		}
+		ntrip_ser_fsm = 0;
+		ntrip_ser_tick = 0;
 		return;
 	}
 	if (sysinfo.gpsRequest == 0)
 	{
+	    sysinfo.ntripRequest = 0;
 		if (socketGetUsedFlag(NTRIP_LINK) == 1)
 		{
 			socketDel(NTRIP_LINK);
@@ -1001,31 +998,33 @@ void ntripServerConnTask(void)
 	if (socketGetUsedFlag(NTRIP_LINK) != 1)
 	{
 		socketAdd(NTRIP_LINK, sysparam.ntripServer, sysparam.ntripServerPort, ntripServerRecv);
-		fsm = 0;
+		ntrip_ser_fsm = 0;
+		ntrip_ser_tick = 0;
 		return;
 	}
 	if (socketGetConnStatus(NTRIP_LINK) != SOCKET_CONN_SUCCESS)
 	{
-		fsm = 0;
+	    ntrip_ser_fsm = 0;
+	    ntrip_ser_tick = 0;
 		LogMessage(DEBUG_ALL, "ntrip sever wait");
 		return;
 	}
-	switch (fsm)
+	switch (ntrip_ser_fsm)
 	{
 		case 0:
             snprintf(sendBuff,200,
          	"GET /%s HTTP/1.0\r\nUser-Agent: NTRIP GNSSInternetRadio/1.4.10\r\nAccept: */*\r\nConnection: close\r\nAuthorization: Basic %s\r\n\r\n",
           	sysparam.ntripSource, sysparam.ntripPswd);
             socketSendData(NTRIP_LINK, (uint8_t *) sendBuff, strlen(sendBuff));
-            fsm = 2;
-            tick = 0;
+            ntrip_ser_fsm = 2;
+            ntrip_ser_tick = 0;
 			break;
 		case 1:
 			if (1)
 			{
 				snprintf(sendBuff, 200, "%s\r\n", getGga());
 	            socketSendData(NTRIP_LINK, (uint8_t *) sendBuff, strlen(sendBuff));
-	            fsm = 3;
+	            ntrip_ser_fsm = 3;
 			}
 //			
 
@@ -1040,7 +1039,7 @@ void ntripServerConnTask(void)
 			break;
 		case 2:
 
-			fsm = 1;
+		    ntrip_ser_fsm = 1;
 			
 			break;
 		case 3:
@@ -1122,3 +1121,21 @@ uint8_t hiddenServerIsReady(void)
     return 1;
 }
 
+
+/**************************************************
+@bref       判断隐藏服务器是否登录正常
+@param
+@return
+@note
+**************************************************/
+
+uint8_t ntripServerIsReady(void)
+{
+    if (isModuleRunNormal() == 0)
+        return 0;
+    if (socketGetConnStatus(NTRIP_LINK) != SOCKET_CONN_SUCCESS)
+        return 0;
+    if (ntrip_ser_fsm != 3)
+        return 0;
+    return 1;
+}

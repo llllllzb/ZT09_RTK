@@ -1859,7 +1859,16 @@ int8_t mipurcParser(uint8_t *buf, uint16_t len)
 		if (link != NTRIP_LINK)
 		 	LogMessage(DEBUG_ALL, restore);
 #endif
-		 
+		 if (link == NTRIP_LINK)
+		 {
+		     /* 在发送数据时同时又发送AT+MIPCLOSE可能会没有相应，所以在这里增加检测 */
+		      if (sysinfo.ntripRequest == 0 && readLen != 0)
+		      {
+		          LogPrintf(DEBUG_ALL, "nonono");
+		          sendModuleCmd(MIPCLOSE_CMD, "1");
+		      }
+
+		 }
 		if (relen < readLen)
 		{
 			 LogPrintf(DEBUG_ALL, "TCP (%d)lost data:%d", link, readLen - relen);

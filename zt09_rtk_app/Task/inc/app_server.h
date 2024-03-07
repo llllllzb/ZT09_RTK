@@ -95,7 +95,7 @@ void ntripRequestClear(void);
 
 uint8_t primaryServerIsReady(void);
 uint8_t hiddenServerIsReady(void);
-
+uint8_t ntripServerIsReady(void);
 void serverManageTask(void);
 
 #endif /* TASK_INC_APP_SERVER_H_ */

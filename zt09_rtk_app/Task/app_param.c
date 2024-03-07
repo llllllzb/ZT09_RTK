@@ -86,8 +86,8 @@ void paramDefaultInit(uint8_t level)
     strcpy(sysparam.ntripSource, "RTCM32");
     strcpy(sysparam.ntripPswd, "VlJTMDE6MTIz");
     sysparam.ServerPort = 9998;
-    sysparam.gpsuploadgap = 30;
-    sysparam.gapMinutes = 60;
+    sysparam.gpsuploadgap = 60;
+    sysparam.gapMinutes = 30;
     dynamicParam.runTime = 0;
     dynamicParam.startUpCnt = 0;
     sysparam.accctlgnss = 1;
