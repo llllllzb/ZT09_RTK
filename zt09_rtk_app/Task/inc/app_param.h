@@ -20,9 +20,9 @@
 #define APP_DYNAMIC_PARAM_ADDR	0x2400 //实际是0x00070000+APP_DYNAMIC_PARAM_ADDR
 #define APP_PARAM_FLAG          0x1b
 #define BOOT_PARAM_FLAG         0xB0
-#define OTA_PARAM_FLAG          0x1A
+#define OTA_PARAM_FLAG          0x1B
 
-#define EEPROM_VERSION									"ZT09N_RTK_V1.0.0"
+#define EEPROM_VERSION									"ZT09N_RTK_V1.0.4"
 
 
 #define JT808_PROTOCOL_TYPE			8
@@ -123,6 +123,7 @@ typedef struct
     uint16_t staticStep;
     uint16_t motionstep;
     uint8_t gpsFilterType;
+    float tempcal;
 } systemParam_s;
 
 /*存在EEPROM里的动态参数*/

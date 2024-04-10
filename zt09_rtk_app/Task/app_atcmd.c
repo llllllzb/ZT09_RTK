@@ -38,6 +38,7 @@ const CMDTABLE atcmdtable[] =
     {AT_FMPC_CM_CMD, "FMPC_CM"},
     {AT_FMPC_CMGET_CMD, "FMPC_CMGET"},
     {AT_FMPC_EXTVOL_CMD, "FMPC_EXTVOL"},
+    {AT_FMPC_TEMP_CMD, "FMPC_TEMP"},
 };
 /**************************************************
 @bref		查找指令
@@ -110,6 +111,11 @@ static void doAtdebugCmd(uint8_t *buf, uint16_t len)
     {
         PORT_SUPPLY_OFF;
         LogMessage(DEBUG_ALL, "supply off");
+    }
+    else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"NTCON"))
+    {
+		NTC_ON;
+		LogMessage(DEBUG_ALL, "ntc on");
     }
     else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"GPSCLOSE"))
     {
@@ -454,6 +460,23 @@ static void atCmdFMPCLdrParase(void)
 }
 
 /**************************************************
+@bref		FMPC_TEMP 指令
+@param
+@return
+@note
+**************************************************/
+
+static void atCmdFMPCTempParase(uint8_t *buf, uint16_t len)
+{
+	float temp;
+	temp = atof(buf);
+	sysinfo.temprature = getTemp();
+	sysparam.tempcal = temp - getTemp();
+	LogPrintf(DEBUG_FACTORY, "+FMPC_TEMP: %.2f", sysparam.tempcal);
+}
+
+
+/**************************************************
 @bref		AT 指令解析
 @param
 @return
@@ -537,6 +560,9 @@ void atCmdParserFunction(uint8_t *buf, uint16_t len)
                         break;
                     case AT_FMPC_LDR_CMD:
 						atCmdFMPCLdrParase();
+                    	break;
+                    case AT_FMPC_TEMP_CMD:
+						atCmdFMPCTempParase((uint8_t *)buf + ret + 1, len - ret - 1);
                     	break;
                     default:
                         LogMessage(DEBUG_ALL, "Unknown Cmd");

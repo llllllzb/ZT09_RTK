@@ -29,6 +29,7 @@ typedef enum{
     AT_FMPC_CM_CMD,
     AT_FMPC_CMGET_CMD,
     AT_FMPC_EXTVOL_CMD,
+	AT_FMPC_TEMP_CMD,
 
 }ATCMDID;
 

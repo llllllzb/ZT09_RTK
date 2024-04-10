@@ -40,7 +40,7 @@
 #define SCL_PIN         GPIO_Pin_14
 #define SDA_PIN         GPIO_Pin_15
 
-//LED 涉及IO
+//LED 涉及IO(和NTC电源供电)
 #define LED1_PIN        GPIO_Pin_10		//PB10
 #define LED1_ON         GPIOB_SetBits(LED1_PIN)
 #define LED1_OFF        GPIOB_ResetBits(LED1_PIN)
@@ -62,7 +62,10 @@
 #define MICPWR_ON		GPIOA_SetBits(MICPWR_PIN)
 #define MICPWR_OFF		GPIOA_ResetBits(MICPWR_PIN)
 
-//NTC 涉及IO
+//NTC 涉及IO(和LED共用)
+#define NTC_PIN			GPIO_Pin_10		//PB10
+#define NTC_ON			GPIOB_SetBits(NTC_PIN)
+#define NTC_OFF			GPIOB_ResetBits(NTC_PIN)
 #define NTC_ADCPIN		GPIO_Pin_8		//PA8
 #define	NTC_CHANNEL		CH_EXTIN_12
 
@@ -152,6 +155,7 @@ void portUpdateRtcDateTime(uint8_t year, uint8_t month, uint8_t date, uint8_t ho
 int portSetNextAlarmTime(void);
 void portSetNextWakeUpTime(void);
 int portSetNextMode4AlarmTime(void);
+void portNtcGpioCfg(uint8_t onoff);
 
 void portLowPowerCfg(void);
 

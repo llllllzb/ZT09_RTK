@@ -698,6 +698,26 @@ void portMicGpioCfg(void)
 }
 
 /**
+ * @brief   NTC GPIO初始化
+ * @param
+ * @return
+ */
+void portNtcGpioCfg(uint8_t onoff)
+{
+	if (onoff)
+	{
+		GPIOB_ModeCfg(NTC_PIN, GPIO_ModeOut_PP_5mA);
+		GPIOA_ModeCfg(NTC_ADCPIN, GPIO_ModeIN_Floating);
+		NTC_ON;
+	}
+	else
+	{
+		GPIOB_ModeCfg(NTC_PIN, GPIO_ModeIN_PD);
+		GPIOA_ModeCfg(NTC_ADCPIN, GPIO_ModeIN_PD);
+	}
+}
+
+/**
  * @brief   LDR GPIO初始化
  * @param
  * @return

@@ -14,6 +14,7 @@
 #include "app_server.h"
 #include "app_jt808.h"
 #include "app_central.h"
+#include <math.h>
 
 #define SYS_LED1_ON       LED1_ON
 #define SYS_LED1_OFF      LED1_OFF
@@ -1382,6 +1383,32 @@ static void accOnGpsUploadTask(void)
         autoTick = 0;
     }
 }
+
+const float Rp = 100000.0; //100K
+const float T2 = (273.15 + 25.0);
+const float B = 3950.0;
+const float K = 273.15;
+
+static float readTemp(float adcV)
+{
+	float v;
+	float Rt;
+	v = adcV;
+	Rt = (100000 * v) / (2.8 - v);
+	v = (1 / (log(Rt / Rp) / B + (1 / T2))) - 273.15 + 0.5;
+	return v;
+}
+
+float getTemp(void)
+{
+	float x;
+	NTC_ON;
+	DelayMs(100);
+	x = portGetAdcVol(NTC_CHANNEL);
+	NTC_OFF;
+	return readTemp(x);
+}
+
 
 /**************************************************
 @bref		µçÑ¹¼ì²âÈÎÎñ
@@ -2843,6 +2870,7 @@ void myTaskPreInit(void)
 	portLdrGpioCfg(1);
     portWdtCfg();
     portDebugUartCfg(1);
+    portNtcGpioCfg(1);
     bleTryInit();
     socketListInit();
     //portSleepEn();
@@ -2852,7 +2880,6 @@ void myTaskPreInit(void)
     volCheckRequestSet();
     createSystemTask(ledTask, 1);
     createSystemTask(outputNode, 2);
-
     sysinfo.sysTaskId = createSystemTask(taskRunInSecond, 10);
 	LogMessage(DEBUG_ALL, ">>>>>>>>>>>>>>>>>>>>>");
     LogPrintf(DEBUG_ALL, "SYS_GetLastResetSta:%x", SYS_GetLastResetSta());
@@ -2869,6 +2896,8 @@ void myTaskPreInit(void)
 static tmosEvents myTaskEventProcess(tmosTaskID taskID, tmosEvents events)
 {
 	uint8_t ret;
+    uint16_t year = 0;
+    uint8_t  month = 0, date = 0, hour = 0, minute = 0, second = 0;
     if (events & SYS_EVENT_MSG)
     {
         uint8 *pMsg;
@@ -2907,6 +2936,7 @@ static tmosEvents myTaskEventProcess(tmosTaskID taskID, tmosEvents events)
 		portAdcCfg(1);
 		portMicGpioCfg();
 		POWER_ON;
+		portNtcGpioCfg(1);
         tmos_start_reload_task(sysinfo.taskId, APP_TASK_KERNAL_EVENT, MS1_TO_SYSTEM_TIME(100));
         return events ^ APP_TASK_RUN_EVENT;
     }
@@ -2921,9 +2951,9 @@ static tmosEvents myTaskEventProcess(tmosTaskID taskID, tmosEvents events)
 		portModuleGpioCfg(0);
 		portGpsGpioCfg(0);
 		portLedGpioCfg(0);
-		
 		portMicGpioCfg();
 		POWER_OFF;
+		portNtcGpioCfg(0);
 		portWdtCancel();
        	tmos_stop_task(sysinfo.taskId, APP_TASK_KERNAL_EVENT);
         portDebugUartCfg(0);
@@ -2937,6 +2967,12 @@ static tmosEvents myTaskEventProcess(tmosTaskID taskID, tmosEvents events)
     	calculateNormalTime();
         LogMessage(DEBUG_ALL, "***************************Task one minutes**********************");
         LogPrintf(DEBUG_ALL,  "*Mode: %d, rungap: %d, System run: %d min, darktime: %d, oneminute: %d*", sysparam.MODE, sysparam.gapMinutes, sysinfo.sysMinutes, sysinfo.ldrDarkCnt, sysinfo.oneMinTick);
+        portGetRtcDateTime(&year, &month, &date, &hour, &minute, &second);
+        if (hour == 0 && minute == 0)
+        {
+            LogPrintf(DEBUG_BLE, "time of zero");
+            portClearStep();
+        }
         LogMessage(DEBUG_ALL, "*****************************************************************");
         portDebugUartCfg(0);
         return events ^ APP_TASK_ONEMINUTE_EVENT;

@@ -199,6 +199,7 @@ static void doStatusInstruction(ITEM *item, char *message)
     gpsinfo_s *gpsinfo;
     moduleGetCsq();
     portUpdateStep();
+    sysinfo.temprature = getTemp() + sysparam.tempcal;
     sprintf(message, "OUT-V=%.2fV;", sysinfo.outsidevoltage);
     //sprintf(message + strlen(message), "BAT-V=%.2fV;", sysinfo.insidevoltage);
     if (sysinfo.gpsOnoff)
@@ -226,6 +227,7 @@ static void doStatusInstruction(ITEM *item, char *message)
     sprintf(message + strlen(message), "LOGIN=%s;", primaryServerIsReady() > 0 ? "Yes" : "No");
     sprintf(message + strlen(message), "NTRIP=%s;", ntripServerIsReady() > 0 ? "Yes" : "No");
     sprintf(message + strlen(message), "STEP=%d;", sysinfo.step);
+    sprintf(message + strlen(message), "TEM=%.2f", sysinfo.temprature);
 }
 
 

@@ -119,6 +119,7 @@ void paramDefaultInit(uint8_t level)
     sysparam.staticStep = 30;
     sysparam.ntripEn = 1;
     sysparam.gpsFilterType = GPS_FILTER_AUTO;
+    sysparam.tempcal = -4;
     dynamicParamSaveAll();
     paramSaveAll();
 }
@@ -134,7 +135,8 @@ void paramInit(void)
    	if (sysparam.otaParamFlag != OTA_PARAM_FLAG)
     {
 		sysparam.otaParamFlag = OTA_PARAM_FLAG;
-
+		sysparam.tempcal = -4;
+		
 		paramSaveAll();
     }
     sysinfo.lowvoltage = sysparam.lowvoltage / 10.0;

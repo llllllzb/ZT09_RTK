@@ -118,6 +118,7 @@ typedef struct
     uint8_t lockTick;
 	uint32_t step;			//表示当天的步数，由Gsensor存储的步数以及flash存储的步数加起来获得，上报或显示都是用该步数
 	uint32_t accStep;		
+	float temprature;
 } SystemInfoTypedef;
 
 extern SystemInfoTypedef sysinfo;

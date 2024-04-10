@@ -183,6 +183,7 @@ uint32_t gpsRequestGet(uint32_t flag);
 void gpsTcpSendRequest(void);
 
 void motionClear(void);
+float getTemp(void);
 
 uint8_t gpsInWait(void);
 

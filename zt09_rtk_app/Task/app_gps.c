@@ -725,10 +725,12 @@ void showgpsinfo(void)
 
 static void addGpsInfo(gpsinfo_s *gpsinfo)
 {
+    static uint8_t tick = 0;
     if (sysinfo.rtcUpdate == 0 && gpsinfo->fixstatus == 1 && gpsinfo->fixAccuracy)
     {
+        tick++;
         if (gpsinfo->datetime.day != 0 && gpsinfo->datetime.hour != 0 && gpsinfo->datetime.minute != 0 &&
-                gpsinfo->datetime.second != 0)
+                gpsinfo->datetime.second != 0 && tick >= 5)
         {
 
             if (gpsinfo->datetime.day != 0 && gpsinfo->datetime.second != 0)
@@ -736,8 +738,12 @@ static void addGpsInfo(gpsinfo_s *gpsinfo)
                 sysinfo.rtcUpdate = 1;
                 updateLocalRTCTime(&gpsinfo->datetime);
             }
-
+            tick= 0;
         }
+    }
+    else
+    {
+        tick = 0;
     }
 
 

@@ -616,6 +616,7 @@ int createProtocol13(unsigned short Serial, char *DestBuf)
     DestBuf[pdu_len++] = sysinfo.terminalStatus;
     gpsinfo = getCurrentGPSInfo();
 	portUpdateStep();
+	sysinfo.temprature = getTemp() + sysparam.tempcal;
     value  = 0;
     gpsvewstar = gpsinfo->used_star;
     beidouviewstar = 0;
@@ -644,6 +645,14 @@ int createProtocol13(unsigned short Serial, char *DestBuf)
     DestBuf[pdu_len++ ] = protocolInfo.startUpcnt & 0xff;
     DestBuf[pdu_len++ ] = (sysinfo.step >> 8) & 0xff; 
     DestBuf[pdu_len++ ] = sysinfo.step & 0xff;
+
+    value = (uint16_t)(sysinfo.temprature * 10);
+    if (sysinfo.temprature >= 0)
+    {
+		value |= 0x8000;
+    }
+    DestBuf[pdu_len++] = (value >> 8) & 0xff;
+    DestBuf[pdu_len++] = value & 0xff;
 
     ret = createProtocolTail(DestBuf, pdu_len,  Serial);
     if (ret < 0)
