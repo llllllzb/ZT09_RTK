@@ -22,7 +22,7 @@
 #define BOOT_PARAM_FLAG         0xB0
 #define OTA_PARAM_FLAG          0x1B
 
-#define EEPROM_VERSION									"ZT09N_RTK_V1.0.4"
+#define EEPROM_VERSION									"ZT09N_RTK_V1.0.5"
 
 
 #define JT808_PROTOCOL_TYPE			8

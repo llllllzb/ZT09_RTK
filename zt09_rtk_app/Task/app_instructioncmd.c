@@ -1537,7 +1537,7 @@ void doNtripInstrucion(ITEM *item, char *message)
     {
         if (atoi(item->item_data[1]))
         {
-            if (getTerminalAccState())
+            if (sysinfo.gpsRequest)
             {
                 ntripRequestSet();
             }
@@ -1613,7 +1613,11 @@ static void doFilterInstruction(ITEM *item, char *message)
 			sysparam.gpsFilterType = GPS_FILTER_AUTO;
 			sprintf(message + strlen(message), "Update high precision filter type to auto");
 		}
-		paramSaveAll();		
+		paramSaveAll();	
+		if (sysinfo.gpsRequest && sysparam.ntripEn &&  sysparam.gpsFilterType)
+        {
+            ntripRequestSet();
+        }
     }
 }
 

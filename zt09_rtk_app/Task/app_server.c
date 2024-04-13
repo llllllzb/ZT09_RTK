@@ -913,6 +913,9 @@ static void agpsServerConnTask(void)
             break;
     }
 }
+static uint8_t ntrip_ser_fsm  = 0;
+static uint8_t ntrip_ser_tick = 0;
+static uint8_t ntrip_update_tick = 0;
 
 void ntripRequestSet(void)
 {
@@ -937,10 +940,12 @@ void ntripRequestClear(void)
 
 void ntripServerRecv(char *data, uint16_t len)
 {
+	ntrip_update_tick = 0;
 	if (my_getstrindex(data, "200 OK", len) < 0)
 	{
 		LogPrintf(DEBUG_ALL, "Ntrip recv %d byte", len);
 		portUartSend(&usart0_ctl, data, len);
+		
 #ifdef TCP_DATA_SHOW
 		char debug[1025] = { 0 };
 		uint16_t debuglen;
@@ -959,8 +964,7 @@ void ntripServerRecv(char *data, uint16_t len)
 @return
 @note
 **************************************************/
-static uint8_t ntrip_ser_fsm  = 0;
-static uint8_t ntrip_ser_tick = 0;
+
 void ntripServerConnTask(void)
 {
 	gpsinfo_s *gpsinfo;
@@ -993,6 +997,8 @@ void ntripServerConnTask(void)
     gpsinfo = getCurrentGPSInfo();
     if (gpsinfo->fixstatus == 0)
     {
+    	ntrip_ser_fsm = 1;
+    	ntrip_ser_tick = 0;
 		return;
     }
 	if (socketGetUsedFlag(NTRIP_LINK) != 1)
@@ -1006,6 +1012,7 @@ void ntripServerConnTask(void)
 	{
 	    ntrip_ser_fsm = 0;
 	    ntrip_ser_tick = 0;
+	    ntrip_update_tick = 0;
 		LogMessage(DEBUG_ALL, "ntrip sever wait");
 		return;
 	}
@@ -1043,7 +1050,11 @@ void ntripServerConnTask(void)
 			
 			break;
 		case 3:
-			
+			ntrip_update_tick++;
+			if (ntrip_update_tick >= 60)
+			{
+				socketDel(NTRIP_LINK);
+			}
 			break;
 		
 	}
