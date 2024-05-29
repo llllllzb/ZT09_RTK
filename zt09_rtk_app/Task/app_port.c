@@ -1790,7 +1790,6 @@ void portUpdateStep(void)
 	if (sysinfo.gsensorOnoff == 0)
 		return;
 	LogPrintf(DEBUG_ALL, "%s==>step:%d %d %d", __FUNCTION__, sysinfo.step, getStep(), dynamicParam.step);
-	//sysparam.step
     sysinfo.step = getStep() + dynamicParam.step;
 }
 
@@ -1800,6 +1799,7 @@ void portClearStep(void)
     {
         sysinfo.step = 0;
         dynamicParam.step = 0;
+        sysinfo.accStep = 0;
         paramSaveAll();
         clearStep();
         LogPrintf(DEBUG_ALL, "portClearStep");

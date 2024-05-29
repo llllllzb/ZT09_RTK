@@ -616,7 +616,6 @@ int createProtocol13(unsigned short Serial, char *DestBuf)
     DestBuf[pdu_len++] = sysinfo.terminalStatus;
     gpsinfo = getCurrentGPSInfo();
 	portUpdateStep();
-	sysinfo.temprature = getTemp() + sysparam.tempcal;
     value  = 0;
     gpsvewstar = gpsinfo->used_star;
     beidouviewstar = 0;

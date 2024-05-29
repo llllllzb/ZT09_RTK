@@ -14,6 +14,7 @@
 #include "aes.h"
 #include "app_jt808.h"
 #include "app_task.h"
+#include "base64.h"
 /*
  * ָ�
  */
@@ -147,18 +148,22 @@ static void doAtdebugCmd(uint8_t *buf, uint16_t len)
     }
     else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"GPSHIGH"))
     {
-				    GPIOB_ModeCfg(GPSPWR_PIN, GPIO_ModeOut_PP_5mA);
+		GPIOB_ModeCfg(GPSPWR_PIN, GPIO_ModeOut_PP_5mA);
 	    GPSPWR_ON;
     }
     else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"GPSLOW"))
     {
-				    GPIOB_ModeCfg(GPSPWR_PIN, GPIO_ModeOut_PP_5mA);
+		GPIOB_ModeCfg(GPSPWR_PIN, GPIO_ModeOut_PP_5mA);
 	    GPSPWR_OFF;
     }
-    else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"WIFI"))
-    {
-		mwifiscaninfoParser(buf, len);
-    }
+	else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"BASE"))
+	{
+		char src[100] = { 0 };
+		char en[100] = { 0 };
+		sprintf(src, "%s:%s", item.item_data[1], item.item_data[2]);
+		base64_encode(src, strlen(src), en);
+		LogPrintf(DEBUG_ALL, "de:%s", en);
+	}
     else
     {
         if (item.item_data[0][0] >= '0' && item.item_data[0][0] <= '9')

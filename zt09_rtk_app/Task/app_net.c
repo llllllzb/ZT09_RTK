@@ -959,6 +959,7 @@ static void cgregParser(uint8_t *buf, uint16_t len)
                         case 4:
                             moduleState.cid = strtoul(restore + 1, NULL, 16);
                             LogPrintf(DEBUG_ALL, "CID=%s,0x%X", restore, moduleState.cid);
+                            sendModuleCmd(CEREG_CMD, "0");
                             break;
                     }
                     restore[0] = 0;
@@ -2369,7 +2370,7 @@ void moduleGetCsq(void)
 
 void moduleGetLbs(void)
 {
-    sendModuleCmd(CGREG_CMD, "?");
+    sendModuleCmd(CEREG_CMD, "2");
     sendModuleCmd(CEREG_CMD, "?");
 }
 /**************************************************

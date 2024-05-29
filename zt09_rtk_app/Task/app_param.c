@@ -112,9 +112,9 @@ void paramDefaultInit(uint8_t level)
     sysparam.mode4Alarm = 1200;
     sysparam.smsreply = 0;
     sysparam.bf = 0;
-    sysparam.range = 0x60;
-    sysparam.stepFliter = 0xAF;
-    sysparam.smThrd = 0x0A;
+    sysparam.range = 0x61;
+    sysparam.stepFliter = 0xA7;
+    sysparam.smThrd = 0x60;
     sysparam.motionstep = 30;
     sysparam.staticStep = 30;
     sysparam.ntripEn = 1;
@@ -136,7 +136,11 @@ void paramInit(void)
     {
 		sysparam.otaParamFlag = OTA_PARAM_FLAG;
 		sysparam.tempcal = -4;
-		
+		memset(sysparam.ntripAccount, 0, sizeof(sysparam.ntripAccount));
+		memset(sysparam.ntripPassWord, 0, sizeof(sysparam.ntripPassWord));
+		sysparam.range = 0x61;
+	    sysparam.stepFliter = 0xA7;
+	    sysparam.smThrd = 0x60;
 		paramSaveAll();
     }
     sysinfo.lowvoltage = sysparam.lowvoltage / 10.0;

@@ -362,7 +362,7 @@ void gpsUartRead(uint8_t *msg, uint16_t len)
     {
         if (gpsRestore[i] == '\n')
         {
-            if (sysinfo.nmeaOutPutCtl)
+            if (/*sysinfo.nmeaOutPutCtl*/1)
             {
                 LogWL(DEBUG_GPS, gpsRestore + begin, i - begin);
                 LogWL(DEBUG_GPS, "\r\n", 2);
@@ -405,20 +405,28 @@ static void changeGPSMsg(void)
     /*RMC*/
     strcpy(param, "$QXCFGMSG,1,0,1*0E\r\n");
     portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
+    DelayMs(10);
     /*GGA*/
     strcpy(param, "$QXCFGMSG,1,2,1*0C\r\n");
     portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
+    DelayMs(10);
     /*GSA*/
     strcpy(param, "$QXCFGMSG,1,3,1*0D\r\n");
     portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
+    DelayMs(10);
 //	/*GSV*/
 //	strcpy(param, "$QXCFGMSG,1,4,1*0A\r\n");
 //	portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
     /*QXDRS*/
     strcpy(param, "$QXCFGMSG,0,5,0*0B\r\n");
     portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
+    DelayMs(10);
     /*QXANTSTAT*/
     strcpy(param, "$QXCFGMSG,0,1,1*0E\r\n");
+    portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
+    DelayMs(10);
+	/*保存配置参数*/
+	strcpy(param, "$QXCFGSAVE*4A\r\n");
     portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
     LogMessage(DEBUG_ALL, "gps config msg RMC GGA GSA");
 
@@ -448,7 +456,7 @@ static void changeGPSRate(void)
     strcpy(param, "$QXCFGRATE,1000,1*79\r\n");
     portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
     LogMessage(DEBUG_ALL, "gps config rate 1Hz");
-    startTimer(10, changeGPSMsg, 0);
+    startTimer(5, changeGPSMsg, 0);
 }
 
 /**************************************************
@@ -463,7 +471,7 @@ static void gpsOpen(void)
     GPSPWR_ON;
     GPSLNA_ON;
     portUartCfg(APPUSART0, 1, 115200, gpsUartRead);
-    startTimer(10, changeGPSRate, 0);
+    startTimer(23, changeGPSRate, 0);
     sysinfo.gpsUpdatetick = sysinfo.sysTick;
     sysinfo.gpsOnoff = 1;
     gpsChangeFsmState(GPSWATISTATUS);
@@ -680,9 +688,9 @@ static void gpsUplodOnePointTask(void)
         return;
     gpsinfo = getCurrentGPSInfo();
     LogPrintf(DEBUG_ALL, "gpsUplodOnePointTask==>runtick:%d fixtick:%d", runtick, fixtick);
-    runtick++;
     if (gpsinfo->fixstatus == 0)
     {
+    	runtick++;
         //fixtick = 0;
         if (runtick >= 180)
         {
@@ -1409,6 +1417,46 @@ float getTemp(void)
 	return readTemp(x);
 }
 
+void getTempTask(void)
+{
+	static uint8_t tick = 0;
+	static uint8_t fsm = 0;
+	if (sysinfo.runFsm != MODE_RUNING)
+	{
+		fsm  = 0;
+		tick = 60;
+		NTC_OFF;
+		return;
+	}
+
+	switch (fsm)
+	{
+	case 0:
+		NTC_OFF;
+		tick++;
+		if (tick >= 60)
+		{
+			tick = 0;
+			fsm = 0;
+		}
+		break;
+	case 1:
+		NTC_ON;
+		tick = 0;
+		fsm = 2;
+		break;
+	case 2:
+		sysinfo.temprature = portGetAdcVol(NTC_CHANNEL) + sysparam.tempcal;
+		LogPrintf(DEBUG_ALL, "update temprature: %.2f", sysinfo.temprature);
+		tick = 0;
+		fsm = 0;
+		break;
+	default:
+		tick = 0;
+		fsm = 0;
+		break;
+	}
+}
 
 /**************************************************
 @bref		电压检测任务
@@ -2757,8 +2805,8 @@ void taskRunInSecond(void)
     lightDetectionTask();
     autoSleepTask();
     sysModeRunTask();
+    getTempTask();
     serverManageTask();
-	
 }
 
 

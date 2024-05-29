@@ -11,6 +11,8 @@
 #include "app_task.h"
 #include "app_server.h"
 #include "app_jt808.h"
+#include "base64.h"
+
 const instruction_s insCmdTable[] =
 {
     {PARAM_INS, "PARAM"},
@@ -57,6 +59,7 @@ const instruction_s insCmdTable[] =
     {NTRIP_INS, "NTRIP"},
     {FILTER_INS, "FILTER"},
     {GPSDEBUG_INS, "GPSDEBUG"},
+    {CLEARSTEP_INS, "CLEARSTEP"},
 };
 
 static insMode_e mode123;
@@ -199,7 +202,6 @@ static void doStatusInstruction(ITEM *item, char *message)
     gpsinfo_s *gpsinfo;
     moduleGetCsq();
     portUpdateStep();
-    sysinfo.temprature = getTemp() + sysparam.tempcal;
     sprintf(message, "OUT-V=%.2fV;", sysinfo.outsidevoltage);
     //sprintf(message + strlen(message), "BAT-V=%.2fV;", sysinfo.insidevoltage);
     if (sysinfo.gpsOnoff)
@@ -1521,12 +1523,15 @@ static void doStepMotionInstruction(ITEM *item, char *message)
 
 void doNtripInstrucion(ITEM *item, char *message)
 {
+	char debug[101] = { 0 };
     if (item->item_data[1][0] == 0 || item->item_data[1][0] == '?')
     {
         if (sysparam.ntripEn)
         {
-            sprintf(message, "Ntrip is enable,%s:%d,%s,%s", sysparam.ntripServer, sysparam.ntripServerPort,
-            		sysparam.ntripSource, sysparam.ntripPswd);
+            sprintf(message, "Ntrip is enable,server:%s:%d, user:%s,password:%s, source:%s ,base64en:%s", 
+            	sysparam.ntripServer, sysparam.ntripServerPort, sysparam.ntripAccount, sysparam.ntripPassWord,
+            	sysparam.ntripSource, sysparam.ntripPswd);
+
         }
         else
         {
@@ -1543,12 +1548,36 @@ void doNtripInstrucion(ITEM *item, char *message)
             }
             socketDel(NTRIP_LINK);
             sysparam.ntripEn = 1;
-            strncpy(sysparam.ntripServer, item->item_data[2], 30);
-            sysparam.ntripServerPort = atoi(item->item_data[3]);
-            strncpy(sysparam.ntripSource, item->item_data[4], 20);
-            strncpy(sysparam.ntripPswd, item->item_data[5], 50);
-            sprintf(message, "Ntrip enable,%s:%d,%s,%s ", sysparam.ntripServer, \
-            	sysparam.ntripServerPort, sysparam.ntripSource, sysparam.ntripPswd);
+            if (item->item_data[2][0] != 0)
+            {
+            	tmos_memset(sysparam.ntripServer, 0, sizeof(sysparam.ntripServer));
+            	strncpy(sysparam.ntripServer, item->item_data[2], sizeof(sysparam.ntripServer));
+            }
+            if (item->item_data[3][0] != 0)
+            {
+            	sysparam.ntripServerPort = atoi(item->item_data[3]);
+            }
+            if (item->item_data[4][0] != 0)
+            {
+            	tmos_memset(sysparam.ntripAccount, 0, sizeof(sysparam.ntripAccount));
+            	tmos_memset(sysparam.ntripPswd, 0, sizeof(sysparam.ntripPswd));
+            	strncpy(sysparam.ntripAccount, item->item_data[4], sizeof(sysparam.ntripAccount));
+            }
+            if (item->item_data[5][0] != 0)
+            {
+            	tmos_memset(sysparam.ntripPassWord, 0, sizeof(sysparam.ntripPassWord));
+            	strncpy(sysparam.ntripPassWord, item->item_data[5], sizeof(sysparam.ntripPassWord));
+            }
+            if (item->item_data[6][0] != 0)
+            {
+            	tmos_memset(sysparam.ntripSource, 0, sizeof(sysparam.ntripSource));
+            	strncpy(sysparam.ntripSource, item->item_data[5], sizeof(sysparam.ntripSource));
+            }
+           	sprintf(debug, "%s:%s", sysparam.ntripAccount, sysparam.ntripPassWord);
+			base64_encode(debug, strlen(debug), sysparam.ntripPswd);
+            sprintf(message, "Ntrip enable,server:%s:%d, user:%s,password:%s, source:%s ,base64en:%s", 
+            	sysparam.ntripServer, sysparam.ntripServerPort, sysparam.ntripAccount, sysparam.ntripPassWord,
+            	sysparam.ntripSource, sysparam.ntripPswd);
         }
         else
         {
@@ -1657,6 +1686,12 @@ static void doGpsdebugInstruction(ITEM *item, char *message)
 	        }
 	    }
 	}
+}
+
+static void doClearStepInstruction(ITEM *item, char *message)
+{
+	portClearStep();
+	strcpy(message, "Clear step");
 }
 
 /*--------------------------------------------------------------------------------------*/
@@ -1797,6 +1832,9 @@ static void doinstruction(int16_t cmdid, ITEM *item, insMode_e mode, void *param
 			break;
 		case GPSDEBUG_INS:
 			doGpsdebugInstruction(item, message);
+			break;
+		case CLEARSTEP_INS:
+			doClearStepInstruction(item, message);
 			break;
         default:
             if (mode == SMS_MODE)
