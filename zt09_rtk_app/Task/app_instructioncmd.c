@@ -1571,7 +1571,7 @@ void doNtripInstrucion(ITEM *item, char *message)
             if (item->item_data[6][0] != 0)
             {
             	tmos_memset(sysparam.ntripSource, 0, sizeof(sysparam.ntripSource));
-            	strncpy(sysparam.ntripSource, item->item_data[5], sizeof(sysparam.ntripSource));
+            	strncpy(sysparam.ntripSource, item->item_data[6], sizeof(sysparam.ntripSource));
             }
            	sprintf(debug, "%s:%s", sysparam.ntripAccount, sysparam.ntripPassWord);
 			base64_encode(debug, strlen(debug), sysparam.ntripPswd);
