@@ -60,6 +60,8 @@ const instruction_s insCmdTable[] =
     {FILTER_INS, "FILTER"},
     {GPSDEBUG_INS, "GPSDEBUG"},
     {CLEARSTEP_INS, "CLEARSTEP"},
+    {UART_INS, "UART"},
+    {SYSTEMSHUTDOWN_INS, "SYSTEMSHUTDOWN"},
 };
 
 static insMode_e mode123;
@@ -836,10 +838,8 @@ void doDebugInstrucion(ITEM *item, char *message)
             sysinfo.sysTick / 3600, sysinfo.sysTick % 3600 / 60, sysinfo.sysTick % 60, sysinfo.gpsRequest,
             sysinfo.gpsUpdatetick / 3600, sysinfo.gpsUpdatetick % 3600 / 60, sysinfo.gpsUpdatetick % 60);
     sprintf(message + strlen(message), "hideLogin:%s;", hiddenServerIsReady() ? "Yes" : "No");
-    sysparam.debug = 5;
-    dynamicParam.debug = 5;
-    paramSaveAll();
-    dynamicParamSaveAll();
+	sprintf(message + strlen(message), "CHARGE_READ:%d", CHARGE_READ);
+	sprintf(message + strlen(message), "charge:%d debug:%d", sysinfo.doChargeFlag, sysinfo.debug);
 }
 
 void doACCCTLGNSSInstrucion(ITEM *item, char *message)
@@ -1694,6 +1694,43 @@ static void doClearStepInstruction(ITEM *item, char *message)
 	strcpy(message, "Clear step");
 }
 
+static void doUartInstruction(ITEM *item, char *message)
+{
+	uint8_t i;
+	if (item->item_data[1][0] == 0 || item->item_data[1][0] == '?')
+    {
+        sprintf(message, "Uart is %s, loglvl is %d", usart2_ctl.init ? "Open" : "Close", sysinfo.logLevel);
+    }
+    else
+    {
+    	if (item->item_data[1][0] != 0)
+    	{
+			i = atoi(item->item_data[1]);
+    	}
+    	if (item->item_data[2][0] != 0)
+    	{
+			sysinfo.logLevel = atoi(item->item_data[2]);
+    	}
+    	if (i)
+    	{
+			portUartCfg(APPUSART2, 1, 115200, doDebugRecvPoll);
+    	}
+    	else 
+    	{
+			portUartCfg(APPUSART2, 0, 115200, NULL);
+    	}
+    	sprintf(message, "Update Uart to %s, loglvl to %d", usart2_ctl.init ? "Open" : "Close", sysinfo.logLevel);
+    }
+}
+
+
+static void doSystemshutdownInstruction(ITEM *item, char *message)
+{
+	strcpy(message, "systemshutdown");
+
+	startTimer(30, systemShutdownHandle, 0);
+}
+
 /*--------------------------------------------------------------------------------------*/
 static void doinstruction(int16_t cmdid, ITEM *item, insMode_e mode, void *param)
 {
@@ -1835,6 +1872,12 @@ static void doinstruction(int16_t cmdid, ITEM *item, insMode_e mode, void *param
 			break;
 		case CLEARSTEP_INS:
 			doClearStepInstruction(item, message);
+			break;
+		case UART_INS:
+			doUartInstruction(item, message);
+			break;
+		case SYSTEMSHUTDOWN_INS:
+			doSystemshutdownInstruction(item, message);
 			break;
         default:
             if (mode == SMS_MODE)

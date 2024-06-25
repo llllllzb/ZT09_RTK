@@ -553,31 +553,42 @@ void GPIOA_IRQHandler(void)
 	    }
 		GPIOA_ClearITFlagBit(LDR_PIN);
     }
-
-
 }
 
 __attribute__((interrupt("WCH-Interrupt-fast")))
 __attribute__((section(".highcode")))
 void GPIOB_IRQHandler(void)
 {
-    uint16_t iqr;
-    iqr = GPIOB_ReadITFlagPort();
-    if (iqr & GSINT_PIN)
-    {
-        motionInfo.tapInterrupt++;
-        sysinfo.doMotionFlag = 1;
-        GPIOB_ClearITFlagBit(GSINT_PIN);
-       	if (GPIOB_ReadPortPin(GSINT_PIN)) 
-		{
-        	GPIOB_ResetBits(GSINT_PIN);
-	    }
-	    else
-	    {
-	        GPIOB_SetBits(GSINT_PIN);
-	    }
-    }
-
+//    uint16_t iqr;
+//    iqr = GPIOB_ReadITFlagPort();
+//    if (iqr & GSINT_PIN)
+//    {
+//        motionInfo.tapInterrupt++;
+//        sysinfo.doMotionFlag = 1;
+//        GPIOB_ClearITFlagBit(GSINT_PIN);
+//       	if (GPIOB_ReadPortPin(GSINT_PIN)) 
+//		{
+//        	GPIOB_ResetBits(GSINT_PIN);
+//	    }
+//	    else
+//	    {
+//	        GPIOB_SetBits(GSINT_PIN);
+//	    }
+//    }
+//    if (iqr & CHARGE_PIN)
+//    {
+    	sysinfo.doChargeFlag = 1;
+        //GPIOB_ClearITFlagBit(CHARGE_PIN);
+//       	if (GPIOB_ReadPortPin(CHARGE_PIN)) 
+//		{
+//        	GPIOB_ResetBits(CHARGE_PIN);
+//	    }
+//	    else
+//	    {
+//	        GPIOB_SetBits(CHARGE_PIN);
+//	    }
+//    }
+    GPIOB_ClearITFlagBit(CHARGE_PIN);
 }
 
 /**
@@ -603,9 +614,6 @@ void portGpioWakeupIRQHandler(void)
 	}
 	if (sysinfo.doMotionFlag)
 	{
-//		portDebugUartCfg(1);
-//		LogMessage(DEBUG_ALL, "devic moving..");
-
 		/*开启任务*/
 		if (sysinfo.kernalRun == 0)
 		{
@@ -613,8 +621,28 @@ void portGpioWakeupIRQHandler(void)
 			tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
 		}
 		sysinfo.doMotionFlag = 0;
-		
 	}
+//	if (sysinfo.doChargeFlag)
+//	{
+//		if (CHARGE_READ == 0)
+//		{
+//			if (sysparam.pwrOnoff == 0)
+//			{
+//				portUartCfg(APPUSART2, 1, 115200, doDebugRecvPoll);
+//				LogPrintf(DEBUG_ALL, "system open");
+//				sysparam.pwrOnoff = 1;
+//				paramSaveAll();
+//				if (sysinfo.kernalRun == 0)
+//				{
+//					wakeUpByInt(2, 3);
+//					tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
+//				}
+//				gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
+//			}
+//			sysinfo.debug = 1;
+//		}
+//		sysinfo.doChargeFlag = 0;
+//	}
 }
 
 
@@ -687,17 +715,6 @@ void portGpsGpioCfg(uint8_t onoff)
 }
 
 /**
- * @brief   MIC GPIO初始化
- * @param
- * @return
- */
-void portMicGpioCfg(void)
-{
-//	GPIOB_ModeCfg(MICPWR_PIN, GPIO_ModeOut_PP_5mA);
-//	MICPWR_OFF;
-}
-
-/**
  * @brief   NTC GPIO初始化
  * @param
  * @return
@@ -749,6 +766,36 @@ void portLdrGpioCfg(uint8_t onoff)
 	
 }
 
+/**
+ * @brief   CHARGE GPIO初始化
+ * @param
+ * @return
+ */
+void portChargeGpioCfg(uint8_t onoff)
+{
+	if (onoff)
+	{
+		PWR_PeriphWakeUpCfg( ENABLE, RB_SLP_GPIO_WAKE, Long_Delay );
+		R16_PIN_ALTERNATE |= RB_PIN_INTX;	//把pb8和pb9的中断源映射到PB22和PB23
+		GPIOB_ModeCfg(CHARGE_PIN, GPIO_ModeIN_PU);
+		GPIOB_ITModeCfg(CHARGE_PIN, GPIO_ITMode_FallEdge);
+		if (GPIOB_ReadPortPin(CHARGE_PIN)) 
+		{
+        	GPIOB_ResetBits(CHARGE_PIN);
+	    }
+	    else
+	    {
+	        GPIOB_SetBits(CHARGE_PIN);
+	    }
+		PFIC_EnableIRQ(GPIO_B_IRQn);
+	}
+	else
+	{
+		R16_PIN_ALTERNATE &= ~RB_PIN_INTX;
+		R16_PB_INT_EN &= ~CHARGE_PIN;
+        GPIOB_ModeCfg(CHARGE_PIN, GPIO_ModeIN_PD);
+	}
+}
 
 
 /**
@@ -796,22 +843,11 @@ void portGsensorPwrCtl(uint8 onoff)
 /**
  * @brief   zt09串口开关
  * @param
- *      onoff
- * @return 针对ZT09串口特殊处理
+ * @return 
  */
 void portDebugUartCfg(uint8_t onoff)
 {
-	if (onoff)
-	{
-		portUartCfg(APPUSART2, 1, 115200, doDebugRecvPoll);
-	}
-	else
-	{
-		if (sysinfo.sleep && sysinfo.kernalRun == 0)
-		{
-//			portUartCfg(APPUSART2, 0, 115200, NULL);
-	    }
-	}
+
 }
 
 /**

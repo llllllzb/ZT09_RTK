@@ -120,6 +120,7 @@ void paramDefaultInit(uint8_t level)
     sysparam.ntripEn = 1;
     sysparam.gpsFilterType = GPS_FILTER_AUTO;
     sysparam.tempcal = -4;
+    sysparam.pwrOnoff = 1;
     dynamicParamSaveAll();
     paramSaveAll();
 }
@@ -141,6 +142,7 @@ void paramInit(void)
 		sysparam.range = 0x61;
 	    sysparam.stepFliter = 0xA7;
 	    sysparam.smThrd = 0x60;
+	    sysparam.pwrOnoff = 1;
 		paramSaveAll();
     }
     sysinfo.lowvoltage = sysparam.lowvoltage / 10.0;

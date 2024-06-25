@@ -18,6 +18,13 @@
 
 #define GPS_REQUEST_ALL					0xFFFFFFFF
 
+#define MODULE_REQUEST_NONE				0
+#define MODULE_REQUEST_CLOSE			1
+#define MODULE_REQUEST_OPEN				2
+#define MODULE_REQUEST_RESET			3
+#define MODULE_REQUESR_SHUTDOWN_OPEN    4 //如果多次使用reset脚都无法重启，则关闭电源20s后再次开机
+
+
 
 #define ALARM_LIGHT_REQUEST				0x0001 //感光
 #define ALARM_LOSTV_REQUEST				0x0002 //断电
@@ -53,11 +60,10 @@
 #define UART_RECV_BUFF_SIZE 			1024
 #define DEBUG_BUFF_SIZE					256
 
-#define MODE_CHOOSE						0
-#define MODE_START						1
-#define MODE_RUNING						2
-#define MODE_STOP						3
-#define MODE_DONE						4
+#define MODE_START						0
+#define MODE_RUNING						1
+#define MODE_STOP						2
+#define MODE_DONE						3
 
 //GPS_UPLOAD_GAP_MAX 以下，gps常开，以上(包含GPS_UPLOAD_GAP_MAX),周期开启
 #define GPS_UPLOAD_GAP_MAX				90
@@ -101,6 +107,21 @@ typedef enum{
 	GPSOPENSTATUS,
 
 }GPSREQUESTFSMSTATUS;
+
+typedef enum
+{
+	MODULE_FSM_CLOSE_DONE,
+	MODULE_FSM_OPEN_ING1,
+	MODULE_FSM_OPEN_ING2,
+	MODULE_FSM_OPEN_ING3,
+	MODULE_FSM_OPEN_DONE,
+	MODULE_FSM_CLOSE_ING,
+	MODULE_FSM_RESET_ING1,
+	MODULE_FSM_RESET_ING2,
+	MODULE_FSM_SHUTDOWN_ING,
+	MODULE_FSM_SHUTDOWN_WAIT,
+	MODULE_FSM_SHUTDOWN_UP,
+}module_fsm_e;
 
 typedef struct
 {
@@ -205,6 +226,7 @@ uint8_t isModeDone(void);
 void bleScanCallBack(deviceScanList_s *list);
 void bleConnCallBack(void);
 void sosRequestSet(void);
+void systemShutdownHandle(void);
 
 void doDebugRecvPoll(uint8_t *msg, uint16_t len);
 void gpsUartRead(uint8_t *msg, uint16_t len);

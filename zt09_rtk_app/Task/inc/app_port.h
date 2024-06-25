@@ -57,10 +57,6 @@
 #define GPSLNA_ON       
 #define GPSLNA_OFF  
 
-//MIC 涉及IO
-#define MICPWR_PIN		GPIO_Pin_11		//PA11
-#define MICPWR_ON		GPIOA_SetBits(MICPWR_PIN)
-#define MICPWR_OFF		GPIOA_ResetBits(MICPWR_PIN)
 
 //NTC 涉及IO(和LED共用)
 #define NTC_PIN			GPIO_Pin_10		//PB10
@@ -77,6 +73,8 @@
 #define LDR_READ		(GPIOA_ReadPortPin(LDR_PIN)?1:0)
 
 
+#define CHARGE_PIN		GPIO_Pin_23 		//PB23
+#define CHARGE_READ		(GPIOB_ReadPortPin(CHARGE_PIN)?1:0)
 
 // (MAXCALCTICKS * 5) + (max remainder) must be <= (uint16 max),
 // so: (13105 * 5) + 7 <= 65535
@@ -129,8 +127,8 @@ void portModuleGpioCfg(uint8_t state);
 
 void portLedGpioCfg(uint8_t onoff);
 void portGpsGpioCfg(uint8_t onoff);
-void portMicGpioCfg(void);
 void portLdrGpioCfg(uint8_t onoff);
+void portChargeGpioCfg(uint8_t onoff);
 
 
 

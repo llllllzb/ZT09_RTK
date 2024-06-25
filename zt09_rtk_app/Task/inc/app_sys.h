@@ -56,6 +56,7 @@ typedef struct
     uint8_t agpsRequest				: 1;
     uint8_t doSosFlag				: 1;
     uint8_t doMotionFlag			: 1;
+    uint8_t doChargeFlag			: 1;
     uint8_t kernalRun				: 1;
     uint8_t sleep					: 1;
     uint8_t first					: 1;
@@ -65,6 +66,8 @@ typedef struct
 	uint8_t mode4NoNetFlag			: 1;
 	uint8_t mode4First				: 1;
 	uint8_t ntripRequest			: 1;
+	uint8_t moduleSupplyStatus		: 1;
+	uint8_t debug					: 1;
     uint8_t lbsExtendEvt;
     uint8_t wifiExtendEvt;
     uint8_t ringWakeUpTick;
@@ -119,6 +122,9 @@ typedef struct
 	uint32_t step;			//表示当天的步数，由Gsensor存储的步数以及flash存储的步数加起来获得，上报或显示都是用该步数
 	uint32_t accStep;		
 	float temprature;
+	uint8_t moduleFsm;
+    uint8_t moduleReq;		//这个请求是互斥的，不是或的关系
+    uint16_t moduleFsmTick;
 } SystemInfoTypedef;
 
 extern SystemInfoTypedef sysinfo;

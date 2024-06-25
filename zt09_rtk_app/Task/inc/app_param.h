@@ -20,9 +20,9 @@
 #define APP_DYNAMIC_PARAM_ADDR	0x2400 //实际是0x00070000+APP_DYNAMIC_PARAM_ADDR
 #define APP_PARAM_FLAG          0x1b
 #define BOOT_PARAM_FLAG         0xB0
-#define OTA_PARAM_FLAG          0x1C
+#define OTA_PARAM_FLAG          0x21
 
-#define EEPROM_VERSION									"ZT09N_RTK_V1.0.8"
+#define EEPROM_VERSION									"ZT09N_RTK_V1.0.9"
 
 
 #define JT808_PROTOCOL_TYPE			8
@@ -126,6 +126,8 @@ typedef struct
     float tempcal;
     uint8_t ntripAccount[50];
     uint8_t ntripPassWord[50];
+
+    uint8_t pwrOnoff;
 } systemParam_s;
 
 /*存在EEPROM里的动态参数*/

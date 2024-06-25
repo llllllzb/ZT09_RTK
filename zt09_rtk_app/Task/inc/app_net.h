@@ -18,10 +18,6 @@
 #define SLEEPMODULE			DTR_HIGH
 
 
-#define GPSSAVEFILE			"gpssave.bat"
-
-
-#define FILE_READ_SIZE		400
 
 
 /* tcp数据缓存模式 */
@@ -212,14 +208,21 @@ uint8_t createNode(char *data, uint16_t datalen, uint8_t currentcmd);
 void outputNode(void);
 uint8_t  sendModuleCmd(uint8_t cmd, char *param);
 
+uint8_t getModulePwrState(void);
+
 void modulePowerOn(void);
 void modulePowerOff(void);
 void moduleReset(void);
+void moduleRequestTask(void);
+void moduleSupplyOn(void);
+void moduleSupplyOff(void);
+
 
 void openSocket(uint8_t link, char *server, uint16_t port);
 void closeSocket(uint8_t link);
 void netRequestSet(void);
 void netRequestClear(void);
+void moduleReqSet(uint8_t req);
 
 void netConnectTask(void);
 void moduleRecvParser(uint8_t *buf, uint16_t bufsize);
