@@ -277,7 +277,7 @@ static void ledTask(void)
 {
 	if (sysparam.ledctrl == 0)
 	{
-		if (sysinfo.sysTick >= 300)
+		if (sysinfo.ledTick == 0)
 		{
 			SYS_LED1_OFF;
 			return;
@@ -285,7 +285,7 @@ static void ledTask(void)
 	}
 	else
 	{
-		if (sysinfo.sysTick >= 300)
+		if (sysinfo.ledTick == 0)
 		{
 			if (getTerminalAccState() == 0)
 			{
@@ -2535,6 +2535,9 @@ void autoSleepTask(void)
 static void rebootEveryDay(void)
 {
     sysinfo.sysTick++;
+	if (sysinfo.ledTick > 0)
+		sysinfo.ledTick--;
+
     //    if (sysinfo.sysTick < 86400)
     //        return ;
     //    if (sysinfo.gpsRequest != 0)
@@ -2685,6 +2688,7 @@ void systemShutdownHandle(void)
 	{
 		modeTryToDone();
 	}
+	ledStatusUpdate(SYSTEM_LED_RUN, 0);
 	sysinfo.gpsRequest    = 0;
 	sysinfo.alarmRequest  = 0;
 	sysinfo.wifiRequest   = 0;
@@ -2693,7 +2697,6 @@ void systemShutdownHandle(void)
 	sysinfo.lbsExtendEvt  = 0;
 	portLdrGpioCfg(0);
 	portGsensorCtl(0);
-	sysinfo.sysTick = 0;
 	sysparam.pwrOnoff = 0;
 	if (sysinfo.logLevel == DEBUG_FACTORY)
 			sysinfo.logLevel = 0;
@@ -2701,6 +2704,7 @@ void systemShutdownHandle(void)
 	portChargeGpioCfg(1);
 	sysinfo.nmeaOutPutCtl = 0;
 	sysinfo.mode4First = 0;
+	sysinfo.ledTick = 0;
 	paramSaveAll();
 }
 
@@ -2733,7 +2737,7 @@ void taskRunInSecond(void)
     }
     autoSleepTask();
     sysModeRunTask();
-    //uartAutoCloseTask();
+    uartAutoCloseTask();
 }
 
 
@@ -2843,15 +2847,13 @@ void myTaskPreInit(void)
     portAdcCfg(1);
 	portLdrGpioCfg(1);
     portWdtCfg();
-    //portUartCfg(APPUSART2, 1, 115200, doDebugRecvPoll);
+    portUartCfg(APPUSART2, 1, 115200, doDebugRecvPoll);
     portNtcGpioCfg(1);
     bleTryInit();
     socketListInit();
     //portSleepEn();
-	ledStatusUpdate(SYSTEM_LED_RUN, 1);
+	
 	portGsensorCtl(1);
-	//portUartCfg(APPUSART2, 0, 115200, NULL);
-	portChargeGpioCfg(1);
     volCheckRequestSet();
     createSystemTask(ledTask, 1);
     createSystemTask(outputNode, 2);
@@ -2863,12 +2865,15 @@ void myTaskPreInit(void)
 	{
 		volCheckRequestSet();
 		ledStatusUpdate(SYSTEM_LED_RUN, 1);
+		sysinfo.ledTick = 300;
 	}
 	else
 	{
 		volCheckRequestClear();
 		portUartCfg(APPUSART2, 0, 115200, NULL);
 		portChargeGpioCfg(1);
+		ledStatusUpdate(SYSTEM_LED_RUN, 0);
+		sysinfo.ledTick = 0;
 	}
 }
 

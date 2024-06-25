@@ -139,9 +139,9 @@ void paramInit(void)
 		sysparam.tempcal = -4;
 		memset(sysparam.ntripAccount, 0, sizeof(sysparam.ntripAccount));
 		memset(sysparam.ntripPassWord, 0, sizeof(sysparam.ntripPassWord));
-		sysparam.range = 0x61;
-	    sysparam.stepFliter = 0xA7;
-	    sysparam.smThrd = 0x60;
+		sysparam.range = 0x60;
+	    sysparam.stepFliter = 0xAF;
+	    sysparam.smThrd = 0x32;
 	    sysparam.pwrOnoff = 1;
 		paramSaveAll();
     }

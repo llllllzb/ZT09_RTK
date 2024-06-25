@@ -67,7 +67,7 @@ typedef struct
 	uint8_t mode4First				: 1;
 	uint8_t ntripRequest			: 1;
 	uint8_t moduleSupplyStatus		: 1;
-	uint8_t debug					: 1;
+	uint16_t debug;
     uint8_t lbsExtendEvt;
     uint8_t wifiExtendEvt;
     uint8_t ringWakeUpTick;
@@ -88,6 +88,7 @@ typedef struct
     uint8_t alarmMinute;
 
     uint8_t taskId;
+	int16_t ledTick;	// led运行时间
 
     uint16_t gpsuploadonepositiontime;
     uint16_t alarmRequest;

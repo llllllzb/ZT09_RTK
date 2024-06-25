@@ -838,8 +838,9 @@ void doDebugInstrucion(ITEM *item, char *message)
             sysinfo.sysTick / 3600, sysinfo.sysTick % 3600 / 60, sysinfo.sysTick % 60, sysinfo.gpsRequest,
             sysinfo.gpsUpdatetick / 3600, sysinfo.gpsUpdatetick % 3600 / 60, sysinfo.gpsUpdatetick % 60);
     sprintf(message + strlen(message), "hideLogin:%s;", hiddenServerIsReady() ? "Yes" : "No");
-	sprintf(message + strlen(message), "CHARGE_READ:%d", CHARGE_READ);
-	sprintf(message + strlen(message), "charge:%d debug:%d", sysinfo.doChargeFlag, sysinfo.debug);
+	sprintf(message + strlen(message), "CHARGE_READ:%d pwron:%d", CHARGE_READ, sysparam.pwrOnoff);
+	sprintf(message + strlen(message), "charge:%d debug:%x", sysinfo.doChargeFlag, sysinfo.debug);
+	sprintf(message + strlen(message), "ledtick:%d", sysinfo.ledTick);
 }
 
 void doACCCTLGNSSInstrucion(ITEM *item, char *message)

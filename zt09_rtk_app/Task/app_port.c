@@ -293,6 +293,7 @@ void portUartCfg(UARTTYPE type, uint8_t onoff, uint32_t baudrate,
             else
             {
                 usart2_ctl.init = 0;
+                GPIOPinRemap(DISABLE, RB_PIN_UART2);
                 UART2_Reset();
                 GPIOB_ModeCfg(GPIO_Pin_22, GPIO_ModeIN_PD);
                 GPIOB_ModeCfg(GPIO_Pin_23, GPIO_ModeIN_PD);
@@ -559,8 +560,8 @@ __attribute__((interrupt("WCH-Interrupt-fast")))
 __attribute__((section(".highcode")))
 void GPIOB_IRQHandler(void)
 {
-//    uint16_t iqr;
-//    iqr = GPIOB_ReadITFlagPort();
+    uint16_t iqr;
+    sysinfo.debug = GPIOB_ReadITFlagPort();
 //    if (iqr & GSINT_PIN)
 //    {
 //        motionInfo.tapInterrupt++;
@@ -579,16 +580,16 @@ void GPIOB_IRQHandler(void)
 //    {
     	sysinfo.doChargeFlag = 1;
         //GPIOB_ClearITFlagBit(CHARGE_PIN);
-//       	if (GPIOB_ReadPortPin(CHARGE_PIN)) 
-//		{
-//        	GPIOB_ResetBits(CHARGE_PIN);
-//	    }
-//	    else
-//	    {
-//	        GPIOB_SetBits(CHARGE_PIN);
-//	    }
+       	if (GPIOB_ReadPortPin(CHARGE_PIN)) 
+		{
+        	GPIOB_ResetBits(CHARGE_PIN);
+	    }
+	    else
+	    {
+	        GPIOB_SetBits(CHARGE_PIN);
+	    }
 //    }
-    GPIOB_ClearITFlagBit(CHARGE_PIN);
+    GPIOB_ClearITFlagBit(GPIO_Pin_9);//实际是PB23 由于PB9映射到PB23上 所以直接清除PB9就可以了
 }
 
 /**
@@ -599,6 +600,28 @@ void GPIOB_IRQHandler(void)
 __attribute__((section(".highcode")))
 void portGpioWakeupIRQHandler(void)
 {
+	if (sysinfo.doChargeFlag)
+	{
+		if (CHARGE_READ == 0)
+		{
+			if (sysparam.pwrOnoff == 0)
+			{
+				sysparam.pwrOnoff = 1;
+				paramSaveAll();
+				if (sysinfo.kernalRun == 0)
+				{
+					wakeUpByInt(2, 3);
+					tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
+				}
+				gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
+				ledStatusUpdate(SYSTEM_LED_RUN, 1);
+				sysinfo.ledTick = 300;
+			}
+		}
+		sysinfo.doChargeFlag = 0;
+	}
+	if (sysparam.pwrOnoff == 0)
+		return;
 	/*LDR触发*/
 	if (sysparam.ldrEn)
 	{
@@ -622,27 +645,7 @@ void portGpioWakeupIRQHandler(void)
 		}
 		sysinfo.doMotionFlag = 0;
 	}
-//	if (sysinfo.doChargeFlag)
-//	{
-//		if (CHARGE_READ == 0)
-//		{
-//			if (sysparam.pwrOnoff == 0)
-//			{
-//				portUartCfg(APPUSART2, 1, 115200, doDebugRecvPoll);
-//				LogPrintf(DEBUG_ALL, "system open");
-//				sysparam.pwrOnoff = 1;
-//				paramSaveAll();
-//				if (sysinfo.kernalRun == 0)
-//				{
-//					wakeUpByInt(2, 3);
-//					tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
-//				}
-//				gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
-//			}
-//			sysinfo.debug = 1;
-//		}
-//		sysinfo.doChargeFlag = 0;
-//	}
+
 }
 
 

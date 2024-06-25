@@ -221,7 +221,7 @@ void GPIOB_ITModeCfg(uint32_t pin, GPIOITModeTpDef mode);
  *
  * @param   pin     - PB0-PB23
  */
-#define GPIOB_ClearITFlagBit(pin)    (R16_PB_INT_IF = ((uint16_t)(pin) | (((uint16_t)(pin) & (GPIO_Pin_22 | GPIO_Pin_23)) >> 14)))
+#define GPIOB_ClearITFlagBit(pin)    (R16_PB_INT_IF = ((pin) | (((pin) & (GPIO_Pin_22 | GPIO_Pin_23)) >> 14)))
 
 /**
  * @brief   外设功能引脚映射
