@@ -136,7 +136,7 @@ s8_m mir3da_open_interrupt(u8_m th)
    	mir3da_register_write(REG_ACTIVE_X_THS, 0x24);
 	mir3da_register_write(REG_ACTIVE_Y_THS, 0x24);
 	mir3da_register_write(REG_ACTIVE_Z_THS, 0x24);
-	mir3da_register_write(0x28, th);
+	//mir3da_register_write(0x28, th);
     res = mir3da_register_write(REG_INT_MAP1, 0x04);
 
     return res;

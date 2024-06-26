@@ -1100,6 +1100,7 @@ static void cgregParser(uint8_t *buf, uint16_t len)
     char restore[50];
     uint8_t cnt;
     uint8_t type = 0;
+    uint8_t ret;
     index = my_getstrindex((char *)buf, "+CGREG:", len);
     if (index < 0)
     {
@@ -1122,10 +1123,14 @@ static void cgregParser(uint8_t *buf, uint16_t len)
                     restore[datalen] = 0;
                     cnt++;
                     datalen = 0;
+                    ret = atoi(restore);
+                    
                     switch (cnt)
                     {
                         case 2:
-                            if (restore[0] == '1' || restore[0] == '5')
+                        	ret = atoi(restore);
+                        	LogPrintf(DEBUG_ALL, "cgreg:%d", ret);
+                            if (ret == 1 || ret == 5)
                             {
                                 if (type)
                                 {

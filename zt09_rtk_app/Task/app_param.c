@@ -102,8 +102,8 @@ void paramDefaultInit(uint8_t level)
     sysparam.sosalm = ALARM_TYPE_NONE;
     sysparam.ldrEn = 1;
     sysparam.tiltalm = 0;
-    sysparam.gsdettime=0;
-    sysparam.gsValidCnt=0;
+    sysparam.gsdettime=15;
+    sysparam.gsValidCnt=7;
     sysparam.gsInvalidCnt=0;
     sysparam.hiddenServOnoff = 0;
     sysparam.debug = 0;
@@ -143,6 +143,9 @@ void paramInit(void)
 	    sysparam.stepFliter = 0xAF;
 	    sysparam.smThrd = 0x32;
 	    sysparam.pwrOnoff = 1;
+	    sysparam.gsdettime=15;
+	    sysparam.gsValidCnt=5;
+	    sysparam.gsInvalidCnt=0;
 		paramSaveAll();
     }
     sysinfo.lowvoltage = sysparam.lowvoltage / 10.0;

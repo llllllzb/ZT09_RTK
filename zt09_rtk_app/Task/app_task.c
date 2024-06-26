@@ -745,7 +745,7 @@ static void gpsUplodOnePointTask(void)
 		}
     }
     ++fixtick;
-    if (fixtick >= 90)
+    if (fixtick >= 60)
 	{
 		fixtick = 0;
 		lbsRequestSet(DEV_EXTEND_OF_MY);
@@ -965,11 +965,11 @@ static void motionStateUpdate(motion_src_e src, motionState_e newState)
     }
     else
     {
-        if (sysparam.gpsuploadgap != 0)
-        {
-            gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
-            gpsRequestClear(GPS_REQUEST_ACC_CTL);
-        }
+//        if (sysparam.gpsuploadgap != 0)
+//        {
+//            gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
+//            gpsRequestClear(GPS_REQUEST_ACC_CTL);
+//        }
         
         terminalAccoff();
         updateRTCtimeRequest();
@@ -1138,8 +1138,8 @@ static void motionCheckTask(void)
         autoTick = 0;
     }
     totalCnt = motionCheckOut(sysparam.gsdettime);
-//        LogPrintf(DEBUG_ALL, "motionCheckOut=%d,%d,%d,%d,%d,%d", totalCnt, sysparam.gsdettime, sysparam.gsValidCnt,
-//                  sysparam.gsInvalidCnt, motionState, autoTick);
+    LogPrintf(DEBUG_ALL, "motionCheckOut=%d,%d,%d,%d,%d,%d", totalCnt, sysparam.gsdettime, sysparam.gsValidCnt,
+                  sysparam.gsInvalidCnt, motionState, autoTick);
 
     if (totalCnt >= sysparam.gsValidCnt && sysparam.gsValidCnt != 0)
     {
@@ -1173,44 +1173,6 @@ static void motionCheckTask(void)
         return;
     }
 
-    if (sysparam.accdetmode == ACCDETMODE1 || sysparam.accdetmode == ACCDETMODE3)
-    {
-        //由acc线+电压控制
-        if (sysinfo.outsidevoltage >= sysparam.accOnVoltage)
-        {
-            if (++volOnTick >= 5)
-            {
-                vFlag = 1;
-                volOnTick = 0;
-                motionStateUpdate(VOLTAGE_SRC, MOTION_MOVING);
-            }
-        }
-        else
-        {
-            volOnTick = 0;
-        }
-
-        if (sysinfo.outsidevoltage < sysparam.accOffVoltage)
-        {
-            if (++volOffTick >= 15)
-            {
-                vFlag = 0;
-                volOffTick = 0;
-                if (sysparam.accdetmode == ACCDETMODE1)
-                {
-                    motionStateUpdate(MOTION_MOVING, MOTION_STATIC);
-                }
-            }
-        }
-        else
-        {
-            volOffTick = 0;
-        }
-        if (sysparam.accdetmode == ACCDETMODE1 || vFlag != 0)
-        {
-            return;
-        }
-    }
     //剩下的，由acc线+gsensor控制
 
     if (motionState)
@@ -1821,32 +1783,33 @@ static void modeStart(void)
     switch (sysparam.MODE)
     {
         case MODE1:
-            
+            portGsensorIntCfg(0);
             dynamicParam.startUpCnt++;
             dynamicParamSaveAll();
             portSetNextAlarmTime();
             break;
         case MODE2:
-
+			portGsensorIntCfg(1);
             if (sysparam.accctlgnss == 0)
             {
                 gpsRequestSet(GPS_REQUEST_GPSKEEPOPEN_CTL);
             }
             break;
         case MODE3:
-
+			portGsensorIntCfg(0);
             dynamicParam.startUpCnt++;
             dynamicParamSaveAll();
             break;
         case MODE21:
- 
+ 			portGsensorIntCfg(1);
             portSetNextAlarmTime();
             break;
         case MODE23:
-
+			portGsensorIntCfg(1);
             break;
         /*离线模式*/
         case MODE4:
+        	portGsensorIntCfg(0);
 		    modulePowerOn();
 		    netResetCsqSearch();
 		    portSetNextAlarmTime();
@@ -1934,10 +1897,10 @@ static void modeRun(void)
 
 static void modeStop(void)
 {
-//    if (sysparam.MODE == MODE1 || sysparam.MODE == MODE3)
-//    {
-//        portGsensorCtl(0);
-//    }
+    if (sysparam.MODE == MODE1 || sysparam.MODE == MODE3)
+    {
+        portGsensorIntCfg(0);
+    }
     ledStatusUpdate(SYSTEM_LED_RUN, 0);
     modulePowerOff();
     changeModeFsm(MODE_DONE);
@@ -2178,6 +2141,7 @@ uint8_t SysBatDetection(void)
 			if (sysparam.MODE == MODE2 || sysparam.MODE == MODE21 || sysparam.MODE == MODE23)
 			{
 				portGsensorCtl(0);
+				
 			}
 		}
 		else if (sysinfo.runFsm == MODE_START)
@@ -2192,8 +2156,11 @@ uint8_t SysBatDetection(void)
 		{
 			if (sysparam.MODE == MODE2 || sysparam.MODE == MODE21 || sysparam.MODE == MODE23)
 			{
-				if (sysparam.pwrOnoff)
+				if (sysparam.pwrOnoff && sysinfo.gsensorOnoff == 0)
+				{
 					portGsensorCtl(1);
+					portGsensorIntCfg(1);
+				}
 			}
 		}
 	}
@@ -2697,6 +2664,7 @@ void systemShutdownHandle(void)
 	sysinfo.lbsExtendEvt  = 0;
 	portLdrGpioCfg(0);
 	portGsensorCtl(0);
+	portGsensorIntCfg(0);
 	sysparam.pwrOnoff = 0;
 	if (sysinfo.logLevel == DEBUG_FACTORY)
 			sysinfo.logLevel = 0;
@@ -2967,11 +2935,11 @@ static tmosEvents myTaskEventProcess(tmosTaskID taskID, tmosEvents events)
         portDebugUartCfg(0);
         return events ^ APP_TASK_ONEMINUTE_EVENT;
     }
-    if (events & APP_TASK_TENSEC_EVENT)
-    {
-		accOnOffByGsensorStep();
-		return events ^ APP_TASK_TENSEC_EVENT;
-    }
+//    if (events & APP_TASK_TENSEC_EVENT)
+//    {
+//		accOnOffByGsensorStep();
+//		return events ^ APP_TASK_TENSEC_EVENT;
+//    }
 
     return 0;
 }
@@ -2989,7 +2957,7 @@ void myTaskInit(void)
     tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
     tmos_start_reload_task(sysinfo.taskId, APP_TASK_POLLUART_EVENT, MS1_TO_SYSTEM_TIME(50));
     tmos_start_reload_task(sysinfo.taskId, APP_TASK_ONEMINUTE_EVENT, MS1_TO_SYSTEM_TIME(60000));
-	tmos_start_reload_task(sysinfo.taskId, APP_TASK_TENSEC_EVENT, MS1_TO_SYSTEM_TIME(10000));
+//	tmos_start_reload_task(sysinfo.taskId, APP_TASK_TENSEC_EVENT, MS1_TO_SYSTEM_TIME(10000));
 
 }
 

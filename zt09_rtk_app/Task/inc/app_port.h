@@ -156,6 +156,7 @@ int portSetNextMode4AlarmTime(void);
 void portNtcGpioCfg(uint8_t onoff);
 
 void portLowPowerCfg(void);
+void portGsensorIntCfg(uint8_t onoff);
 
 
 void portAdcCfg(uint8_t onoff);

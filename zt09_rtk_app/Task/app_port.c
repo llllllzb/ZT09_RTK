@@ -561,21 +561,21 @@ __attribute__((section(".highcode")))
 void GPIOB_IRQHandler(void)
 {
     uint16_t iqr;
-    sysinfo.debug = GPIOB_ReadITFlagPort();
-//    if (iqr & GSINT_PIN)
-//    {
-//        motionInfo.tapInterrupt++;
-//        sysinfo.doMotionFlag = 1;
-//        GPIOB_ClearITFlagBit(GSINT_PIN);
-//       	if (GPIOB_ReadPortPin(GSINT_PIN)) 
-//		{
-//        	GPIOB_ResetBits(GSINT_PIN);
-//	    }
-//	    else
-//	    {
-//	        GPIOB_SetBits(GSINT_PIN);
-//	    }
-//    }
+    iqr = GPIOB_ReadITFlagPort();
+    if (iqr & GSINT_PIN)
+    {
+        motionInfo.tapInterrupt++;
+        sysinfo.doMotionFlag = 1;
+        GPIOB_ClearITFlagBit(GSINT_PIN);
+       	if (GPIOB_ReadPortPin(GSINT_PIN)) 
+		{
+        	GPIOB_ResetBits(GSINT_PIN);
+	    }
+	    else
+	    {
+	        GPIOB_SetBits(GSINT_PIN);
+	    }
+    }
 //    if (iqr & CHARGE_PIN)
 //    {
     	sysinfo.doChargeFlag = 1;
@@ -638,18 +638,18 @@ void portGpioWakeupIRQHandler(void)
 	if (sysinfo.doMotionFlag)
 	{
 		/*开启任务*/
-		if (sysinfo.kernalRun == 0)
+		if (MODE2 == sysparam.MODE || MODE21 == sysparam.MODE || MODE23 == sysparam.MODE)
 		{
-			wakeUpByInt(2, 3);
-			tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
+			if (sysinfo.kernalRun == 0)
+			{
+				wakeUpByInt(2, 3);
+				tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
+			}
 		}
 		sysinfo.doMotionFlag = 0;
 	}
 
 }
-
-
-
 
 /**
  * @brief   模组GPIO初始化
@@ -782,7 +782,7 @@ void portChargeGpioCfg(uint8_t onoff)
 		R16_PIN_ALTERNATE |= RB_PIN_INTX;	//把pb8和pb9的中断源映射到PB22和PB23
 		GPIOB_ModeCfg(CHARGE_PIN, GPIO_ModeIN_PU);
 		GPIOB_ITModeCfg(CHARGE_PIN, GPIO_ITMode_FallEdge);
-		if (GPIOB_ReadPortPin(CHARGE_PIN)) 
+		if (GPIOB_ReadPortPin(CHARGE_PIN))
 		{
         	GPIOB_ResetBits(CHARGE_PIN);
 	    }
@@ -1094,26 +1094,42 @@ void portGsensorCtl(uint8_t onoff)
         portSaveStep();
 //        GPIOB_ModeCfg(GSINT_PIN, GPIO_ModeIN_PD);
 //        R16_PB_INT_EN &= ~GSINT_PIN;
+		portGsensorIntCfg(0);
+
     }
     LogPrintf(DEBUG_ALL, "gsensor %s", onoff ? "On" : "Off");
 }
 
 
 /**
- * @brief   RTC 配置
+ * @brief   gsensor中断配置
  * @param
  * @return
  */
-void portRtcCfg(void)
+void portGsensorIntCfg(uint8_t onoff)
 {
-    LClk32K_Select(Clk32K_LSI);
-    R8_SAFE_ACCESS_SIG = SAFE_ACCESS_SIG1;
-    R8_SAFE_ACCESS_SIG = SAFE_ACCESS_SIG2;
-    R8_SLP_WAKE_CTRL |= RB_SLP_RTC_WAKE;// RTC唤醒
-    R8_RTC_MODE_CTRL |= (RB_RTC_TMR_EN | RB_RTC_TMR_MODE); //定时模式
+	if (onoff)
+	{
+		GPIOB_ModeCfg(GSINT_PIN, GPIO_ModeIN_Floating);
+        GPIOB_ITModeCfg(GSINT_PIN, GPIO_ITMode_RiseEdge);
+        if (GPIOB_ReadPortPin(GSINT_PIN)) 
+		{
+        	GPIOB_ResetBits(GSINT_PIN);
+	    }
+	    else
+	    {
+	        GPIOB_SetBits(GSINT_PIN);
+	    }
+        PFIC_EnableIRQ(GPIO_B_IRQn);
+        mir3da_open_interrupt(10);
+	}
+	else
+	{
+		GPIOB_ModeCfg(GSINT_PIN, GPIO_ModeIN_PD);
+        R16_PB_INT_EN &= ~GSINT_PIN;
+        mir3da_close_interrupt();
+	}
 
-    R8_SAFE_ACCESS_SIG = 0;
-    PFIC_EnableIRQ(RTC_IRQn);
 }
 
 /**

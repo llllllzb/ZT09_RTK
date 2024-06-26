@@ -62,6 +62,7 @@ const instruction_s insCmdTable[] =
     {CLEARSTEP_INS, "CLEARSTEP"},
     {UART_INS, "UART"},
     {SYSTEMSHUTDOWN_INS, "SYSTEMSHUTDOWN"},
+    {MOTIONDET_INS, "MOTIONDET"},
 };
 
 static insMode_e mode123;
@@ -388,11 +389,13 @@ static void doModeInstruction(ITEM *item, char *message)
                     }
                     sysparam.MODE = MODE1;
                     portGsensorCtl(1);
+                    portGsensorIntCfg(0);
                 }
                 else
                 {
                     sysparam.MODE = MODE21;
                     portGsensorCtl(1);
+                    portGsensorIntCfg(1);
                     if (getTerminalAccState())
                     {
                         if (sysparam.gpsuploadgap < GPS_UPLOAD_GAP_MAX && sysparam.gpsuploadgap != 0)
@@ -419,6 +422,7 @@ static void doModeInstruction(ITEM *item, char *message)
                 break;
             case 2:
                 portGsensorCtl(1);
+                portGsensorIntCfg(1);
                 sysparam.gpsuploadgap = (uint16_t)atoi((const char *)item->item_data[2]);
                 sysparam.gapMinutes = (uint16_t)atoi((const char *)item->item_data[3]);
                 sysparam.MODE = MODE2;
@@ -494,6 +498,7 @@ static void doModeInstruction(ITEM *item, char *message)
                     }
                     sysparam.MODE = MODE3;
                     portGsensorCtl(1);
+                    portGsensorIntCfg(0);
                     sprintf(message, "Change to mode %d and update the startup interval time to %d minutes;", workmode,
                         sysparam.gapMinutes);
                 }
@@ -532,6 +537,7 @@ static void doModeInstruction(ITEM *item, char *message)
                     }
                     sysparam.MODE = MODE23;
                     portGsensorCtl(1);
+                    portGsensorIntCfg(1);
                     sprintf(message, "Change to mode %d and update interval time to %d s %d m;", workmode, sysparam.gpsuploadgap,
                             sysparam.gapMinutes);
                 }
@@ -585,6 +591,7 @@ static void doModeInstruction(ITEM *item, char *message)
                 wifiRequestClear();
                 agpsRequestClear();
                 portGsensorCtl(1);
+                portGsensorIntCfg(0);
                 startTimer(50, changeMode4Callback, 0);
                 if (sysparam.mode4Alarm != 0xFFFF)
                 {
@@ -1731,6 +1738,28 @@ static void doSystemshutdownInstruction(ITEM *item, char *message)
 
 	startTimer(30, systemShutdownHandle, 0);
 }
+static void doMotionDetInstruction(ITEM *item, char *message)
+{
+    if (item->item_data[1][0] == 0 || item->item_data[1][0] == '?')
+    {
+        sprintf(message, "Motion param %d,%d,%d", sysparam.gsdettime, sysparam.gsValidCnt, sysparam.gsInvalidCnt);
+    }
+    else
+    {
+        sysparam.gsdettime = atoi(item->item_data[1]);
+        sysparam.gsValidCnt = atoi(item->item_data[2]);
+        sysparam.gsInvalidCnt = atoi(item->item_data[3]);
+
+        sysparam.gsdettime = (sysparam.gsdettime > motionGetSize() ||
+                              sysparam.gsdettime == 0) ? motionGetSize() : sysparam.gsdettime;
+        sysparam.gsValidCnt = (sysparam.gsValidCnt > sysparam.gsdettime ||
+                               sysparam.gsValidCnt == 0) ? sysparam.gsdettime : sysparam.gsValidCnt;
+
+        sysparam.gsInvalidCnt = sysparam.gsInvalidCnt > sysparam.gsValidCnt ? sysparam.gsValidCnt : sysparam.gsInvalidCnt;
+        paramSaveAll();
+        sprintf(message, "Update motion param to %d,%d,%d", sysparam.gsdettime, sysparam.gsValidCnt, sysparam.gsInvalidCnt);
+    }
+}
 
 /*--------------------------------------------------------------------------------------*/
 static void doinstruction(int16_t cmdid, ITEM *item, insMode_e mode, void *param)
@@ -1880,6 +1909,9 @@ static void doinstruction(int16_t cmdid, ITEM *item, insMode_e mode, void *param
 		case SYSTEMSHUTDOWN_INS:
 			doSystemshutdownInstruction(item, message);
 			break;
+		case MOTIONDET_INS:
+            doMotionDetInstruction(item, message);
+            break;
         default:
             if (mode == SMS_MODE)
             {

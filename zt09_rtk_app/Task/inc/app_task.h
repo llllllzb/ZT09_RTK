@@ -149,7 +149,7 @@ typedef struct
     uint8_t ind;
     motionState_e motionState;
     uint8_t tapInterrupt;
-    uint8_t tapCnt[10];
+    uint8_t tapCnt[15];
 } motionInfo_s;
 
 
@@ -220,6 +220,7 @@ void lbsRequestSet(uint8_t ext);
 void wifiRequestSet(uint8_t ext);
 
 void motionOccur(void);
+uint8_t motionGetSize(void);
 
 void modeTryToStop(void);
 uint8_t isModeDone(void);
