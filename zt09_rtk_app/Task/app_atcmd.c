@@ -156,6 +156,10 @@ static void doAtdebugCmd(uint8_t *buf, uint16_t len)
 		GPIOB_ModeCfg(GPSPWR_PIN, GPIO_ModeOut_PP_5mA);
 	    GPSPWR_OFF;
     }
+    else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"TEMP"))
+    {
+		LogPrintf(DEBUG_ALL, "temp:%.2f", getTemp());
+    }
 	else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"BASE"))
 	{
 		char src[100] = { 0 };
@@ -477,7 +481,7 @@ static void atCmdFMPCTempParase(uint8_t *buf, uint16_t len)
 	temp = atof(buf);
 	sysinfo.temprature = getTemp();
 	sysparam.tempcal = temp - getTemp();
-	LogPrintf(DEBUG_FACTORY, "+FMPC_TEMP: %.2f", sysparam.tempcal);
+	LogPrintf(DEBUG_FACTORY, "+FMPC_TEMP: %.2f cal:%.2f", sysinfo.temprature + sysparam.tempcal, sysparam.tempcal);
 }
 
 

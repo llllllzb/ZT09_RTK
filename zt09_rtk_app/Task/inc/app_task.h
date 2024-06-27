@@ -205,7 +205,7 @@ void gpsTcpSendRequest(void);
 
 void motionClear(void);
 float getTemp(void);
-
+float readTemp(float adcV);
 uint8_t gpsInWait(void);
 
 void wakeUpByInt(uint8_t     type,uint8_t sec);

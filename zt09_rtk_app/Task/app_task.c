@@ -275,6 +275,22 @@ void ledStatusUpdate(uint8_t status, uint8_t onoff)
 
 static void ledTask(void)
 {
+#define LED_TIME_BASE	10
+	static uint16_t tick = 60 * LED_TIME_BASE;
+	float x;
+	if (++tick >= 60 * LED_TIME_BASE)
+	{
+		NTC_ON;
+		if (tick >= 61 * LED_TIME_BASE)
+		{
+			x = portGetAdcVol(NTC_CHANNEL);
+			sysinfo.temprature = readTemp(x) + sysparam.tempcal;
+			tick = 0;
+			NTC_OFF;
+		}
+		LogPrintf(DEBUG_ALL, "temtask==>tick:%d, temp:%f", tick, sysinfo.temprature);
+		return;
+	}
 	if (sysparam.ledctrl == 0)
 	{
 		if (sysinfo.ledTick == 0)
@@ -1138,8 +1154,8 @@ static void motionCheckTask(void)
         autoTick = 0;
     }
     totalCnt = motionCheckOut(sysparam.gsdettime);
-    LogPrintf(DEBUG_ALL, "motionCheckOut=%d,%d,%d,%d,%d,%d", totalCnt, sysparam.gsdettime, sysparam.gsValidCnt,
-                  sysparam.gsInvalidCnt, motionState, autoTick);
+//    LogPrintf(DEBUG_ALL, "motionCheckOut=%d,%d,%d,%d,%d,%d", totalCnt, sysparam.gsdettime, sysparam.gsValidCnt,
+//                  sysparam.gsInvalidCnt, motionState, autoTick);
 
     if (totalCnt >= sysparam.gsValidCnt && sysparam.gsValidCnt != 0)
     {
@@ -1359,7 +1375,7 @@ const float T2 = (273.15 + 25.0);
 const float B = 3950.0;
 const float K = 273.15;
 
-static float readTemp(float adcV)
+float readTemp(float adcV)
 {
 	float v;
 	float Rt;
@@ -1377,47 +1393,6 @@ float getTemp(void)
 	x = portGetAdcVol(NTC_CHANNEL);
 	NTC_OFF;
 	return readTemp(x);
-}
-
-void getTempTask(void)
-{
-	static uint8_t tick = 0;
-	static uint8_t fsm = 0;
-	if (sysinfo.runFsm != MODE_RUNING)
-	{
-		fsm  = 0;
-		tick = 60;
-		NTC_OFF;
-		return;
-	}
-
-	switch (fsm)
-	{
-	case 0:
-		NTC_OFF;
-		tick++;
-		if (tick >= 60)
-		{
-			tick = 0;
-			fsm = 0;
-		}
-		break;
-	case 1:
-		NTC_ON;
-		tick = 0;
-		fsm = 2;
-		break;
-	case 2:
-		sysinfo.temprature = portGetAdcVol(NTC_CHANNEL) + sysparam.tempcal;
-		LogPrintf(DEBUG_ALL, "update temprature: %.2f", sysinfo.temprature);
-		tick = 0;
-		fsm = 0;
-		break;
-	default:
-		tick = 0;
-		fsm = 0;
-		break;
-	}
 }
 
 /**************************************************
@@ -2689,7 +2664,6 @@ void taskRunInSecond(void)
     gpsRequestTask();
     moduleRequestTask();
     motionCheckTask();
-    getTempTask();
 	if (sysparam.pwrOnoff)
 	{
 	    netConnectTask();
