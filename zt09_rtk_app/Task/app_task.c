@@ -2869,7 +2869,7 @@ static tmosEvents myTaskEventProcess(tmosTaskID taskID, tmosEvents events)
 		portLedGpioCfg(1);
 		portAdcCfg(1);
 		portNtcGpioCfg(1);
-
+		GPSRTC_ON;
         tmos_start_reload_task(sysinfo.taskId, APP_TASK_KERNAL_EVENT, MS1_TO_SYSTEM_TIME(100));
         return events ^ APP_TASK_RUN_EVENT;
     }
@@ -2886,7 +2886,7 @@ static tmosEvents myTaskEventProcess(tmosTaskID taskID, tmosEvents events)
 		portLedGpioCfg(0);
 		portNtcGpioCfg(0);
 		portWdtCancel();
-
+		GPSRTC_OFF;
        	tmos_stop_task(sysinfo.taskId, APP_TASK_KERNAL_EVENT);
         portDebugUartCfg(0);
         return events ^ APP_TASK_STOP_EVENT;

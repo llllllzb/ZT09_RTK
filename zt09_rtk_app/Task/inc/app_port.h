@@ -57,6 +57,11 @@
 #define GPSLNA_ON       
 #define GPSLNA_OFF  
 
+#define GPSRTC_PIN		GPIO_Pin_11		//PA11
+#define GPSRTC_ON		{GPIOA_ModeCfg(GPSPWR_PIN, GPIO_ModeOut_PP_5mA);GPIOA_SetBits(GPSPWR_PIN);}
+#define GPSRTC_OFF		{GPIOA_ModeCfg(GPSPWR_PIN, GPIO_ModeOut_PP_5mA);GPIOA_ResetBits(GPSPWR_PIN);}
+
+
 
 //NTC 涉及IO(和LED共用)
 #define NTC_PIN			GPIO_Pin_10		//PB10
