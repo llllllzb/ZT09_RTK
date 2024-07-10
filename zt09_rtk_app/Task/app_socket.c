@@ -7,7 +7,7 @@
 #include "app_sys.h"
 #include "app_net.h"
 #include "app_socket.h"
-#define SOCKET_LIST_MAX_SIZE    5
+#define SOCKET_LIST_MAX_SIZE    6
 
 SocketInfo_s socketList[SOCKET_LIST_MAX_SIZE];
 SocketScheduleInfo_s sockSchInfo;

@@ -27,9 +27,12 @@
 #define WIFI_ADDRESS		0X7400
 
 #define DB_FLAG				0xAB
-#define GPS_DB_SIZE			500
+#define GPS_DB_SIZE			480
 
 #define BLOCK_SIZE		256
+
+#define DB_UPLOAD_MAX_CNT	1
+
 
 typedef struct
 {

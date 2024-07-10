@@ -15,6 +15,8 @@
 #include "app_jt808.h"
 #include "app_task.h"
 #include "base64.h"
+#include "app_zhdprotocol.h"
+
 /*
  * ָ�
  */
@@ -70,6 +72,7 @@ static void doAtdebugCmd(uint8_t *buf, uint16_t len)
 {
     int8_t ret;
     ITEM item;
+   
     stringToItem(&item, buf, len);
     strToUppper(item.item_data[0], strlen(item.item_data[0]));
 
@@ -156,6 +159,26 @@ static void doAtdebugCmd(uint8_t *buf, uint16_t len)
 		GPIOB_ModeCfg(GPSPWR_PIN, GPIO_ModeOut_PP_5mA);
 	    GPSPWR_OFF;
     }
+    else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"GPSRXH"))
+    {
+		GPIOB_ModeCfg(GPIO_Pin_7, GPIO_ModeOut_PP_5mA);
+		GPIOB_SetBits(GPIO_Pin_7);
+		LogPrintf(DEBUG_ALL, "GPSRXH");
+    }
+   	else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"GPSRXL"))
+    {
+		GPIOB_ModeCfg(GPIO_Pin_7, GPIO_ModeOut_PP_5mA);
+		GPIOB_ResetBits(GPIO_Pin_7);
+		LogPrintf(DEBUG_ALL, "GPSRXL");
+    }
+   	else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"GPSUTON"))
+    {
+		portUartCfg(APPUSART0, 1, 115200, gpsUartRead);
+    }
+    else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"GPSUTOFF"))
+    {
+		portUartCfg(APPUSART0, 0, 115200, gpsUartRead);
+    }
     else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"TEMP"))
     {
 		LogPrintf(DEBUG_ALL, "temp:%.2f", getTemp());
@@ -167,6 +190,45 @@ static void doAtdebugCmd(uint8_t *buf, uint16_t len)
 		sprintf(src, "%s:%s", item.item_data[1], item.item_data[2]);
 		base64_encode(src, strlen(src), en);
 		LogPrintf(DEBUG_ALL, "de:%s", en);
+	}
+	else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"LG"))
+	{
+		LogPrintf(DEBUG_ALL, "sn:%s", sysparam.zhdsn);
+		zhd_lg_info_register(sysparam.zhdsn, sysparam.zhdUser, sysparam.zhdPassword);
+		zhd_protocol_send(ZHD_PROTOCOL_LG, NULL);
+	}
+	else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"GP"))
+	{
+		gpsinfo_s gpsinfo;
+		gpsinfo.longtitude = 113.361511;
+		gpsinfo.latitude   = 22.981545;
+		gpsinfo.hight      = 40.716999;
+		gpsinfo.fixAccuracy = 1;
+		gpsinfo.speed      = 0.029000;
+		gpsinfo.datetime.year = 21;
+		gpsinfo.datetime.month = 9;
+		gpsinfo.datetime.day = 22;
+		gpsinfo.datetime.hour = 9;
+		gpsinfo.datetime.minute = 10;
+		gpsinfo.datetime.second = 52;
+		zhd_gp_info_register(&gpsinfo, 100);
+		zhd_protocol_send(ZHD_PROTOCOL_GP, NULL);
+	}
+	else if (mycmdPatch((uint8_t *)item.item_data[0], (uint8_t *)"AAA"))
+	{
+		uint8_t aaa[] = {0x3b, 0x89, 0x08, 0xFF, 0x22, 0x57, 0x5C, 0x40};
+		uint8_t bbb[] = {0x31, 0x04, 0x84, 0xFF, 0x22, 0x57, 0x5C, 0x40};
+		double la, lo;
+		int i;
+		memcpy(&la, aaa, sizeof(aaa));
+		memcpy(&lo, bbb, sizeof(bbb));
+		uint8_t *pla = (void *)&la;
+		for(i = 0;i<8;i++)
+			LogPrintf(DEBUG_ALL, "%#x", pla[i]);
+		pla = (void *)&lo;
+        for(i = 0;i<8;i++)
+            LogPrintf(DEBUG_ALL, "%#x", pla[i]);
+		LogPrintf(DEBUG_ALL, "sss:%.12lf  %.12lf", la, lo);
 	}
     else
     {
@@ -583,6 +645,6 @@ void atCmdParserFunction(uint8_t *buf, uint16_t len)
     else
     {
         //createNode(buf, len, 0);
-        portUartSend(&usart3_ctl, (uint8_t *)buf, len);
+        portUartSend(&usart0_ctl, (uint8_t *)buf, len);
     }
 }

@@ -21,6 +21,7 @@ C_SRCS += \
 ../Task/app_socket.c \
 ../Task/app_sys.c \
 ../Task/app_task.c \
+../Task/app_zhdprotocol.c \
 ../Task/base64.c 
 
 OBJS += \
@@ -40,6 +41,7 @@ OBJS += \
 ./Task/app_socket.o \
 ./Task/app_sys.o \
 ./Task/app_task.o \
+./Task/app_zhdprotocol.o \
 ./Task/base64.o 
 
 C_DEPS += \
@@ -59,6 +61,7 @@ C_DEPS += \
 ./Task/app_socket.d \
 ./Task/app_sys.d \
 ./Task/app_task.d \
+./Task/app_zhdprotocol.d \
 ./Task/base64.d 
 
 

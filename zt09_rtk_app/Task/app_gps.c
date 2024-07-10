@@ -833,7 +833,7 @@ static int8_t calculateDistanceOfPoint(void)
 
     distance = calculateTheDistanceBetweenTwoPonits(gpsinfo->latitude, gpsinfo->longtitude, lastuploadgpsinfo.latitude,
                lastuploadgpsinfo.longtitude) * 1000;
-    sprintf(debug, "lastlat:%.2f, lastlon:%.2f lastgpsticksec:%d nowlat:%.2f, nowlon:%.2f, nowgpstick:%d distance of point =%.2fm", lastuploadgpsinfo.latitude, lastuploadgpsinfo.longtitude, lastuploadgpsinfo.gpsticksec, gpsinfo->latitude,  gpsinfo->longtitude, gpsinfo->gpsticksec, distance);
+    //sprintf(debug, "lastlat:%.2f, lastlon:%.2f lastgpsticksec:%d nowlat:%.2f, nowlon:%.2f, nowgpstick:%d distance of point =%.2fm", lastuploadgpsinfo.latitude, lastuploadgpsinfo.longtitude, lastuploadgpsinfo.gpsticksec, gpsinfo->latitude,  gpsinfo->longtitude, gpsinfo->gpsticksec, distance);
     LogMessage(DEBUG_ALL, debug);
     if (distance > sysparam.fence)
     {

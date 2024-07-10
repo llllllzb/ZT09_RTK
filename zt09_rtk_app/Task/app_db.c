@@ -11,6 +11,7 @@
 #include "app_protocol.h"
 #include "app_net.h"
 #include "app_jt808.h"
+#include "app_zhdprotocol.h"
 
 static dbinfo_t dbinfo;
 static gpsDataBase_s gpsdb = {0};
@@ -216,7 +217,7 @@ uint8_t dbUpload(void)
 
     //一次性最多上送20条
     gpscount = (gpsdb.size - gpsdb.upSize) / sizeof(gpsRestore_s);
-    gpscount = gpscount > 5 ? 5 : gpscount;
+    gpscount = gpscount > DB_UPLOAD_MAX_CNT ? DB_UPLOAD_MAX_CNT : gpscount;
 
     if (gpscount == 0)
     {
@@ -233,6 +234,10 @@ uint8_t dbUpload(void)
         {
             datalen = jt808gpsRestoreDataSend((uint8_t *)dest + destlen, gpsinfo);
         }
+        else if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+        {
+			datalen = zhd_gp_restore_upload((uint8_t *)dest + destlen, gpsinfo);
+        }
         else
         {
             gpsRestoreDataSend(gpsinfo, (char *)dest + destlen, &datalen);
@@ -243,6 +248,10 @@ uint8_t dbUpload(void)
     if (sysparam.protocol == JT808_PROTOCOL_TYPE)
     {
         jt808TcpSend((uint8_t *)dest, destlen);
+    }
+    else if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+    {
+		zhd_tcp_send(ZHD_LINK, (uint8_t *)dest, destlen);
     }
     else
     {
@@ -384,7 +393,7 @@ uint16 dbCircularWrite(uint8 *data, uint16 len)
     {
         u16Value = DB_SIZE - dbinfo.dbEnd;
         ret = dbSectionWrite(data, u16Value);
-        if (ret == 0)
+        if (ret == 0 && dbinfo.dbEnd != DB_SIZE)
         {
             return 0;
         }

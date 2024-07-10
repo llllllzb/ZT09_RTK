@@ -118,6 +118,8 @@ typedef enum
 	MODULE_FSM_CLOSE_ING,
 	MODULE_FSM_RESET_ING1,
 	MODULE_FSM_RESET_ING2,
+	MODULE_FSM_RESET_ING3,
+	MODULE_FSM_RESET_ING4,
 	MODULE_FSM_SHUTDOWN_ING,
 	MODULE_FSM_SHUTDOWN_WAIT,
 	MODULE_FSM_SHUTDOWN_UP,
@@ -218,6 +220,7 @@ void alarmRequestClear(uint16_t request);
 
 void lbsRequestSet(uint8_t ext);
 void wifiRequestSet(uint8_t ext);
+void getLastFixLocationFromFlash(void);
 
 void motionOccur(void);
 uint8_t motionGetSize(void);

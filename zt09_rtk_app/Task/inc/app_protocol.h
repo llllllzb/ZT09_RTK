@@ -5,6 +5,7 @@
 
 
 #define WIFIINFOMAX		15
+
 typedef enum{
 	PROTOCOL_01,//登录
 	PROTOCOL_12,//定位
@@ -22,7 +23,7 @@ typedef enum{
 
 
 
-//总过17个字节，存储20个字节
+//总共25个字节，存储40个字节
 typedef struct{
 	uint8_t year;
 	uint8_t month;
@@ -30,11 +31,11 @@ typedef struct{
 	uint8_t hour;
 	uint8_t minute;
 	uint8_t second;
-	uint8_t latititude[4];
-	uint8_t longtitude[4];
 	uint8_t speed;
+	uint8_t latititude[8];
+	uint8_t longtitude[8];
 	uint8_t coordinate[2];
-	uint8_t temp[3];
+	uint8_t temp[15];
 }gpsRestore_s;
 
 typedef struct
@@ -96,7 +97,7 @@ void setInsId(void);
 
 void gpsRestoreUpload(void);
 
-
+void gpsRestoreSave(gpsRestore_s *gpsres);
 void protocolSnRegister(char *sn);
 void protocolInfoResiter(uint8_t batLevel, float vol, uint16_t sCnt, uint16_t runCnt);
 

@@ -82,6 +82,9 @@ void hiddenServerCloseClear(void);
 void jt808ServerReconnect(void);
 void jt808ServerAuthSuccess(void);
 
+void zhdServerReconnect(void);
+void zhdServerLoginSuccess(void);
+
 
 void bleServerAddInfo(bleInfo_s dev);
 void showBleList(void);

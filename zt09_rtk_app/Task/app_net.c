@@ -11,6 +11,7 @@
 #include "app_server.h"
 #include "app_socket.h"
 #include "app_jt808.h"
+#include "app_zhdprotocol.h"
 
 //联网相关结构体
 
@@ -376,7 +377,7 @@ void modulePowerOff(void)
 void moduleReset(void)
 {
 	//moduleState.powerState == 0表示设备处于关机或者处于开关机状态
-	//如果已经处于开关机状态，就没必要有这个请求了
+	//如果已经处于关机状态，就没必要有这个请求了
 	if (moduleState.powerState != 0)
 		moduleReqSet(MODULE_REQUEST_RESET);
 }
@@ -599,11 +600,29 @@ void moduleRequestTask(void)
 	    moduleFsmChange(MODULE_FSM_CLOSE_DONE);
 		break;
 	case MODULE_FSM_RESET_ING1:
-		moduleSupplyOff();
-		moduleFsmChange(MODULE_FSM_RESET_ING2);
+		if (++sysinfo.moduleFsmTick > 5)	
+		{
+			PWRKEY_LOW;
+			moduleFsmChange(MODULE_FSM_RESET_ING2);
+		}
 		break;
 	case MODULE_FSM_RESET_ING2:
-		if (++sysinfo.moduleFsmTick > 75)	//7.5s
+		if (++sysinfo.moduleFsmTick > 36)
+		{
+			PWRKEY_HIGH;
+			moduleFsmChange(MODULE_FSM_RESET_ING4);
+		}
+		break;
+//	case MODULE_FSM_RESET_ING3:
+//		if (++sysinfo.moduleFsmTick > 5)	
+//		{
+//			moduleSupplyOff();
+//			moduleFsmChange(MODULE_FSM_RESET_ING4);
+//		}
+//		break;
+	case MODULE_FSM_RESET_ING4:
+		//模组硬件关机需要等待12s以上以确保真的关闭了
+		if (++sysinfo.moduleFsmTick > 120)	
 		{
 			LogMessage(DEBUG_ALL, "modulePowerResetDone");
 			LogMessage(DEBUG_ALL, "modulePowerOn");
@@ -625,7 +644,7 @@ void moduleRequestTask(void)
 		moduleFsmChange(MODULE_FSM_SHUTDOWN_WAIT);
 		break;
 	case MODULE_FSM_SHUTDOWN_WAIT:
-		if (++sysinfo.moduleFsmTick > 300)
+		if (++sysinfo.moduleFsmTick > 900)
 		{
 			moduleFsmChange(MODULE_FSM_SHUTDOWN_UP);
 		}
@@ -800,6 +819,10 @@ static void queryRecvBuffer(void)
         qirdCmdSend(HIDDEN_LINK, moduleState.hideLinkQird);
 
     }
+    else if (moduleState.zhdLinkQird)
+    {
+		qirdCmdSend(ZHD_LINK, moduleState.zhdLinkQird);
+    }
 }
 
 /**************************************************
@@ -860,7 +883,7 @@ void netConnectTask(void)
                     moduleState.powerOnTick = 0;
                     sendModuleCmd(AT_CMD, NULL);
                 }
-                if (moduleState.fsmtick >= 30)
+                if (moduleState.fsmtick >= 10)
                 {
                     moduleCtrl.atCount++;
                     if (moduleCtrl.atCount >= 2)
@@ -892,7 +915,7 @@ void netConnectTask(void)
                 {
                     sendModuleCmd(CPIN_CMD, "?");
                 }
-                if (moduleState.fsmtick >= 30)
+                if (moduleState.fsmtick >= 10)
                 {
                     moduleReset();
                 }
@@ -1552,6 +1575,13 @@ static void cgsnParser(uint8_t *buf, uint16_t len)
             tmos_memset(dynamicParam.SN, 0, sizeof(dynamicParam.SN));
             strncpy(dynamicParam.SN, moduleState.IMEI, 15);
             jt808CreateSn(dynamicParam.jt808sn, dynamicParam.SN + 3, 12);
+            if (strncmp(sysparam.zhdsn, "88887777", 8) == 0)
+            {
+	            strncpy(sysparam.zhdsn, moduleState.IMEI + 7, ZHD_LG_SN_LEN);
+	            sysparam.zhdsn[ZHD_LG_SN_LEN] = 0;
+	            LogPrintf(DEBUG_ALL, "zhd sn[%s]", sysparam.zhdsn);
+	            paramSaveAll();
+            }
             dynamicParam.jt808isRegister = 0;
             dynamicParam.jt808AuthLen = 0;
             dynamicParamSaveAll();
@@ -1893,7 +1923,7 @@ void mipopenParser(uint8_t *buf, uint16_t len)
 		if (result == 0)
 		{
 			socketSetConnState(link, SOCKET_CONN_SUCCESS);
-			if (link == NORMAL_LINK)
+			if (link == NORMAL_LINK || link == ZHD_LINK)
 			{
 				moduleCtrl.qiopenCount = 0;
 			}
@@ -1901,7 +1931,7 @@ void mipopenParser(uint8_t *buf, uint16_t len)
 		else
 		{
 			socketSetConnState(link, SOCKET_CONN_ERR);
-			if (link == NORMAL_LINK)
+			if (link == NORMAL_LINK || link == ZHD_LINK)
 			{
 				moduleCtrl.qiopenCount++;
 				if (moduleCtrl.qiopenCount >= 4)
@@ -1981,6 +2011,9 @@ int8_t mipurcParser(uint8_t *buf, uint16_t len)
 				case AGPS_LINK:
 					moduleState.agpsLinkQird = 1;
 					break;
+				case ZHD_LINK:
+					moduleState.zhdLinkQird = 1;
+					break;
 			}
         }
         else if (my_strpach(rebuf, "disconn"))
@@ -2039,7 +2072,7 @@ int8_t mipurcParser(uint8_t *buf, uint16_t len)
 			 relen -= index + 1;
 
 			 LogPrintf(DEBUG_ALL, "链路:%d 读取长度:%d 剩余长度:%d 指针:%d", link, readLen, relen, index);
-			 if (link == NORMAL_LINK)
+			 if (link == NORMAL_LINK || link == ZHD_LINK)
 			 {
 				 index += 2;
 			 }
@@ -2171,6 +2204,9 @@ static void miprdParser(uint8_t *buf, uint16_t len)
 					break;
 				case AGPS_LINK:
 					moduleState.agpsLinkQird = 0;
+					break;
+				case ZHD_LINK:
+					moduleState.zhdLinkQird = 0;
 					break;
 			}
 			LogPrintf(DEBUG_ALL, "Socket[%d] recv Done", link);
@@ -2448,7 +2484,6 @@ void moduleRecvParser(uint8_t *buf, uint16_t bufsize)
 //            mipcallParser(dataRestore, len);
 //            break;
 #ifdef URC_CACHE_MODE
-
         case MIPRD_CMD:
         	if (my_strstr((char *)dataRestore, "+CME ERROR:", len))
             {
@@ -2469,6 +2504,9 @@ void moduleRecvParser(uint8_t *buf, uint16_t bufsize)
                     case AGPS_LINK:
                         moduleState.agpsLinkQird = 0;
                         break;
+                    case ZHD_LINK:
+						moduleState.zhdLinkQird = 0;
+						break;
                 }
                 LogPrintf(DEBUG_ALL, "Link[%d] recv err", moduleState.curQirdId);
             }
@@ -2517,7 +2555,7 @@ int socketSendData(uint8_t link, uint8_t *data, uint16_t len)
     sendModuleCmd(AT_CMD, NULL);
     sendModuleCmd(MIPSEND_CMD, param);
     createNode((char *)data, len, CIPSEND_CMD);
-    if (link == NORMAL_LINK || link == JT808_LINK)
+    if (link == NORMAL_LINK || link == JT808_LINK || link == ZHD_LINK)
     {
         moduleState.tcpNack = len;
     }

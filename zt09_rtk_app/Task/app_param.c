@@ -1,7 +1,7 @@
 #include "app_param.h"
 #include "app_gps.h"
 #include "app_db.h"
-
+#include "app_task.h"
 bootParam_s bootparam;
 systemParam_s sysparam;
 dynamicParam_s dynamicParam;
@@ -50,17 +50,21 @@ void paramDefaultInit(uint8_t level)
         sysparam.VERSION = APP_PARAM_FLAG;
         strcpy(dynamicParam.SN, "888888887777777");
         strncpy(dynamicParam.jt808sn, "888777", 6);
-
+		strncpy(sysparam.zhdsn, "88887777", 9);
+		strncpy(sysparam.zhdUser, "12345678", 9);
+		strncpy(sysparam.zhdPassword, "12345678", 9);
+		
         strcpy(sysparam.Server, "jzwz.basegps.com");
         strcpy(sysparam.hiddenServer, "jzwz.basegps.com");
         strcpy(sysparam.jt808Server, "47.106.96.28");
-        strcpy(sysparam.ntripServer, "222.177.24.8");
+
+		strcpy(sysparam.zhdServer, "59.42.52.138");
 
         sysparam.ServerPort = 9998;
-
         sysparam.hiddenPort = 9998;
         sysparam.jt808Port = 9997;
-		sysparam.ntripServerPort = 10051;
+		sysparam.zhdPort = 65002;
+		
 		sysparam.protocol = 0;
         sysparam.utc = 8;
         sysparam.AlarmTime[0] = 720;
@@ -103,7 +107,7 @@ void paramDefaultInit(uint8_t level)
     sysparam.ldrEn = 1;
     sysparam.tiltalm = 0;
     sysparam.gsdettime=15;
-    sysparam.gsValidCnt=7;
+    sysparam.gsValidCnt=3;
     sysparam.gsInvalidCnt=0;
     sysparam.hiddenServOnoff = 0;
     sysparam.debug = 0;
@@ -136,16 +140,6 @@ void paramInit(void)
    	if (sysparam.otaParamFlag != OTA_PARAM_FLAG)
     {
 		sysparam.otaParamFlag = OTA_PARAM_FLAG;
-		sysparam.tempcal = -4;
-		memset(sysparam.ntripAccount, 0, sizeof(sysparam.ntripAccount));
-		memset(sysparam.ntripPassWord, 0, sizeof(sysparam.ntripPassWord));
-		sysparam.range = 0x60;
-	    sysparam.stepFliter = 0xAF;
-	    sysparam.smThrd = 0x32;
-	    sysparam.pwrOnoff = 1;
-	    sysparam.gsdettime=15;
-	    sysparam.gsValidCnt=5;
-	    sysparam.gsInvalidCnt=0;
 		paramSaveAll();
     }
     sysinfo.lowvoltage = sysparam.lowvoltage / 10.0;

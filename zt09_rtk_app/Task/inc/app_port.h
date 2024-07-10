@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include "config.h"
 
-#define APPUSART0_BUFF_SIZE 1536
+#define APPUSART0_BUFF_SIZE 1024
 #define APPUSART1_BUFF_SIZE 10
 #define APPUSART2_BUFF_SIZE 128
-#define APPUSART3_BUFF_SIZE 2048
+#define APPUSART3_BUFF_SIZE 1792
 
 //4GÄ£×éÉæ¼°IO
 #define SUPPLY_PIN      GPIO_Pin_13		//PB13

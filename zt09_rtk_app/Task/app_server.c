@@ -16,11 +16,12 @@
 #include "app_jt808.h"
 #include "app_task.h"
 #include "app_central.h"
+#include "app_zhdprotocol.h"
 
-static netConnectInfo_s privateServConn, bleServConn, hiddenServConn;
+static netConnectInfo_s privateServConn, zhdServConn, hiddenServConn;
 static jt808_Connect_s jt808ServConn;
 static agps_connect_s agpsServConn;
-static bleInfo_s *bleHead = NULL;
+
 static int8_t timeOutId = -1;
 static int8_t hbtTimeOutId = -1;
 
@@ -77,6 +78,10 @@ static void hbtRspTimeOut(void)
     {
         socketDel(NORMAL_LINK);
     }
+    else if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+    {
+		socketDel(ZHD_LINK);
+    }
     else
     {
         socketDel(JT808_LINK);
@@ -112,11 +117,6 @@ void privateServerReconnect(void)
     socketSetConnState(0, SOCKET_CONN_ERR);
     moduleSleepCtl(0);
 }
-
-
-
-
-
 
 /**************************************************
 @bref		服务器断开
@@ -731,59 +731,195 @@ void jt808ServerConnTask(void)
 }
 
 /**************************************************
-@bref		添加待登录的从设备信息
+@bref		中海达服务器状态切换
 @param
 @return
 @note
-	SN:999913436051195,292,3.77,46
 **************************************************/
 
-void bleServerAddInfo(bleInfo_s dev)
+static void zhdServerChangeFsm(NetWorkFsmState fsm)
 {
-    bleInfo_s *next;
-    if (bleHead == NULL)
+	zhdServConn.fsmstate = fsm;
+	LogPrintf(DEBUG_ALL, "%s==>%d", __FUNCTION__, fsm);
+}
+
+/**************************************************
+@bref		中海达服务器复位
+@param
+@return
+@note
+**************************************************/
+void zhdServerReconnect(void)
+{
+    LogMessage(DEBUG_ALL, "zhd reconnect server");
+    socketDel(ZHD_LINK);
+    socketSetConnState(0, SOCKET_CONN_ERR);
+}
+
+/**************************************************
+@bref		中海达tcp服务器数据接收
+@param
+@return
+@note
+**************************************************/
+void zhdServerSocketRecv(char *data, uint16_t len)
+{
+    zhd_protocol_rx_parser((uint8_t *)data, len);
+}
+
+/**************************************************
+@bref		中海达数据发送接口
+@param
+	none
+@return
+	1		发送成功
+	!=1		发送失败
+@note
+**************************************************/
+
+static int zhdServerSocketSend(uint8_t link, uint8_t *data, uint16_t len)
+{
+    int ret;
+    ret = socketSendData(link, data, len);
+    return 1;
+}
+
+/**************************************************
+@bref		中海达tcp服务器登陆成功
+@param
+@return
+@note
+**************************************************/
+
+void zhdServerLoginSuccess(void)
+{
+	zhdServConn.loginCount = 0;
+	zhdServConn.heartbeattick = 0;
+	moduleSleepCtl(1);
+	ledStatusUpdate(SYSTEM_LED_NETOK, 1);
+	zhdServerChangeFsm(SERV_READY);
+	LogPrintf(DEBUG_ALL, "Zhd Server Login Success");
+}
+
+/**************************************************
+@bref		中海达tcp服务器连接任务
+@param
+@return
+@note
+**************************************************/
+
+void zhdServerConnTask(void)
+{
+	static uint16_t unLoginTick = 0;
+	gpsinfo_s *gpsinfo;
+	if (isModuleRunNormal() == 0)
     {
-        bleHead = malloc(sizeof(bleInfo_s));
-        if (bleHead != NULL)
+        ledStatusUpdate(SYSTEM_LED_NETOK, 0);
+        if (socketGetUsedFlag(ZHD_LINK) == 1)
         {
-            strncpy(bleHead->imei, dev.imei, 15);
-            bleHead->imei[15] = 0;
-            bleHead->startCnt = dev.startCnt;
-            bleHead->vol = dev.vol;
-            bleHead->batLevel = dev.batLevel;
-            bleHead->next = NULL;
+            socketDel(ZHD_LINK);
         }
         return;
     }
-    next = bleHead;
-    while (next != NULL)
+    if (socketGetUsedFlag(ZHD_LINK) != 1)
     {
-        if (next->next == NULL)
-        {
-            next->next = malloc(sizeof(bleInfo_s));
-            if (next->next != NULL)
-            {
-                next = next->next;
-
-                strncpy(next->imei, dev.imei, 15);
-                next->imei[15] = 0;
-                next->startCnt = dev.startCnt;
-                next->vol = dev.vol;
-                next->batLevel = dev.batLevel;
-                next->next = NULL;
-                next = next->next;
-            }
-            else
-            {
-                break;
-            }
-        }
-        else
-        {
-            next = next->next;
-        }
+		ledStatusUpdate(SYSTEM_LED_NETOK, 0);
+		zhdServerChangeFsm(SERV_LOGIN);
+		zhd_tcp_send_handle_register(zhdServerSocketSend);
+		socketAdd(ZHD_LINK, sysparam.zhdServer, sysparam.zhdPort, zhdServerSocketRecv);
+		return;
     }
+    if (socketGetConnStatus(ZHD_LINK) != SOCKET_CONN_SUCCESS)
+    {
+		ledStatusUpdate(SYSTEM_LED_NETOK, 0);
+		zhdServerChangeFsm(SERV_LOGIN);
+		if (unLoginTick++ >= 600)
+		{
+			unLoginTick = 0;
+			moduleReset();
+		}
+		return;
+    }
+    switch (zhdServConn.fsmstate)
+    {
+	case SERV_LOGIN:
+		unLoginTick = 0;
+		if (strncmp(sysparam.zhdsn, "88887777", 8) == 0)
+		{
+			LogMessage(DEBUG_ALL, "no ZHD SN");
+			return;
+		}
+		LogMessage(DEBUG_ALL, "login to server...");
+		zhd_lg_info_register(sysparam.zhdsn, sysparam.zhdUser, sysparam.zhdPassword);
+		zhd_protocol_send(ZHD_PROTOCOL_LG, NULL);
+		zhdServerChangeFsm(SERV_LOGIN_WAIT);
+		zhdServConn.logintick = 0;
+		break;
+	case SERV_LOGIN_WAIT:
+		zhdServConn.logintick++;
+		if (zhdServConn.logintick >= 60)
+		{
+			zhdServerChangeFsm(SERV_LOGIN);
+			zhdServConn.loginCount++;
+			zhdServerReconnect();
+			if (zhdServConn.loginCount >= 3)
+			{
+				zhdServConn.loginCount = 0;
+				moduleReset();
+			}
+		}
+		break;
+	case SERV_READY:
+		if (zhdServConn.heartbeattick % (sysparam.heartbeatgap - 2) == 0)
+		{
+			moduleGetCsq();
+		}
+		if (zhdServConn.heartbeattick % sysparam.heartbeatgap == 0)
+		{
+            zhdServConn.heartbeattick = 0;
+            if (timeOutId == -1)
+            {
+                timeOutId = startTimer(120, moduleRspTimeout, 0);
+            }
+            if (hbtTimeOutId == -1)
+            {
+                hbtTimeOutId = startTimer(1800, hbtRspTimeOut, 0);
+            }
+            //发送心跳包的时候,要判断此时是否gps定位,不定位,修改accuracy
+            gpsinfo = getCurrentGPSInfo();
+            if (gpsinfo->fixstatus == 0)
+            {
+            	gpsinfo = getLastFixedGPSInfo();
+            	gpsinfo->fixAccuracy = 0;
+            }
+            zhd_protocol_send(ZHD_PROTOCOL_GP, gpsinfo);
+            netRequestClear();
+        }
+        zhdServConn.heartbeattick++;
+        if (getTcpNack())
+        {
+            querySendData(ZHD_LINK);
+        }
+        if (zhdServConn.heartbeattick % 2 == 0)
+        {
+            //传完ram再传文件系统
+            if (getTcpNack() == 0)
+            {
+                if (dbUpload() == 0)
+                {
+                    gpsRestoreUpload();
+                }
+            }
+        }
+		break;
+	default:
+        zhdServConn.fsmstate = SERV_LOGIN;
+        zhdServConn.heartbeattick = 0;
+        break;
+    }
+    
 }
+
 
 /**************************************************
 @bref		agps请求
@@ -969,7 +1105,11 @@ void ntripServerConnTask(void)
 {
 	gpsinfo_s *gpsinfo;
 	char sendBuff[200];
-	if (sysparam.ntripEn == 0 || sysinfo.ntripRequest == 0 || sysparam.gpsFilterType == GPS_FILTER_CLOSE)
+	if (sysparam.ntripEn == 0 || 
+		sysinfo.ntripRequest == 0 || 
+		sysparam.gpsFilterType == GPS_FILTER_CLOSE || 
+		sysparam.ntripServer[0] == 0 || 
+		sysparam.ntripServerPort == 0)
 	{
 		if (sysparam.ntripEn == 0 || sysparam.gpsFilterType == GPS_FILTER_CLOSE)
 			sysinfo.ntripRequest = 0;
@@ -1075,6 +1215,10 @@ void serverManageTask(void)
     {
         jt808ServerConnTask();
     }
+    else if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+    {
+		zhdServerConnTask();
+    }
     else
     {
         privateServerConnTask();
@@ -1103,6 +1247,13 @@ uint8_t primaryServerIsReady(void)
             return 0;
         if (jt808ServConn.connectFsm != JT808_NORMAL)
             return 0;
+    }
+    else if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+    {
+		if (socketGetConnStatus(ZHD_LINK) != SOCKET_CONN_SUCCESS)
+            return 0;
+       	if (zhdServConn.fsmstate != SERV_READY)
+       		return 0;
     }
     else
     {

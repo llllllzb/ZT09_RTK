@@ -1,6 +1,6 @@
 #include <app_protocol.h>
 #include "app_instructioncmd.h"
-
+#include "app_zhdprotocol.h"
 #include "app_peripheral.h"
 #include "app_socket.h"
 #include "app_gps.h"
@@ -63,6 +63,7 @@ const instruction_s insCmdTable[] =
     {UART_INS, "UART"},
     {SYSTEMSHUTDOWN_INS, "SYSTEMSHUTDOWN"},
     {MOTIONDET_INS, "MOTIONDET"},
+    {ZHDSN_INS, "ZHDSN"},
 };
 
 static insMode_e mode123;
@@ -112,10 +113,17 @@ static void sendMsgWithMode(uint8_t *buf, uint16_t len, insMode_e mode, void *pa
 static void doParamInstruction(ITEM *item, char *message)
 {
     uint8_t i;
-    uint8_t debugMsg[15];
-    if (sysparam.protocol == JT808_PROTOCOL_TYPE)
+    uint8_t debugMsg[20] = { 0 };
+    if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
     {
-        byteToHexString(dynamicParam.jt808sn, debugMsg, 6);
+        byteToHexString(dynamicParam.jt808sn, debugMsg, 8);
+        debugMsg[16] = 0;
+        sprintf(message + strlen(message), "ZHDSN:%s;SN:%s;IP:%s:%u;use:%s;password:%s", debugMsg, dynamicParam.SN, sysparam.zhdServer, 
+        			sysparam.zhdPort, sysparam.zhdUser, sysparam.zhdPassword);
+    }
+    else if (sysparam.protocol == JT808_PROTOCOL_TYPE)
+    {
+		byteToHexString(sysparam.zhdsn, debugMsg, 6);
         debugMsg[12] = 0;
         sprintf(message + strlen(message), "JT808SN:%s;SN:%s;IP:%s:%u;", debugMsg, dynamicParam.SN, sysparam.jt808Server,
                 sysparam.jt808Port);
@@ -238,48 +246,93 @@ static void doStatusInstruction(ITEM *item, char *message)
 
 static void serverChangeCallBack(void)
 {
+	if (serverType == JT808_PROTOCOL_TYPE)
+	{
+		sysparam.protocol = JT808_PROTOCOL_TYPE;
+		dynamicParam.jt808isRegister = 0;
+	}
+	else if (serverType == ZHD_PROTOCOL_TYPE)
+	{
+		sysparam.protocol = ZHD_PROTOCOL_TYPE;
+	}
+	else
+	{
+		sysparam.protocol = ZT_PROTOCOL_TYPE;
+	}
+	paramSaveAll();
+	dynamicParamSaveAll();
+
     jt808ServerReconnect();
     privateServerReconnect();
+    zhdServerReconnect();
 }
 
 static void doServerInstruction(ITEM *item, char *message)
 {
-    if (item->item_data[2][0] != 0 && item->item_data[3][0] != 0)
-    {
-        serverType = atoi(item->item_data[1]);
-        if (serverType == JT808_PROTOCOL_TYPE)
-        {
-            strncpy((char *)sysparam.jt808Server, item->item_data[2], 50);
-            stringToLowwer(sysparam.jt808Server, strlen(sysparam.jt808Server));
-            sysparam.jt808Port = atoi((const char *)item->item_data[3]);
-            sprintf(message, "Update jt808 domain %s:%d;", sysparam.jt808Server, sysparam.jt808Port);
-
-        }
-        else
-        {
-            strncpy((char *)sysparam.Server, item->item_data[2], 50);
-            stringToLowwer(sysparam.Server, strlen(sysparam.Server));
-            sysparam.ServerPort = atoi((const char *)item->item_data[3]);
-            sprintf(message, "Update domain %s:%d;", sysparam.Server, sysparam.ServerPort);
-        }
-	    if (serverType == JT808_PROTOCOL_TYPE)
+	if (item->item_data[1][0] == 0 || item->item_data[1][0] == '?')
+	{
+		if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+		{
+			sprintf(message, "zhd domain %s:%d user:%s password:%s;", 
+						sysparam.zhdServer, sysparam.zhdPort, sysparam.zhdUser, sysparam.zhdPassword);
+		}
+		else if (sysparam.protocol == JT808_PROTOCOL_TYPE)
+		{
+			sprintf(message, "jt808 domain %s:%d;", sysparam.jt808Server, sysparam.jt808Port);
+		}
+		else
+		{
+			sprintf(message, "zt domain %s:%d;", sysparam.Server, sysparam.ServerPort);
+		}
+	}
+	else
+	{
+	    if (item->item_data[2][0] != 0 && item->item_data[3][0] != 0)
 	    {
-	        sysparam.protocol = JT808_PROTOCOL_TYPE;
-	        dynamicParam.jt808isRegister = 0;
+	        serverType = atoi(item->item_data[1]);
+	        if (serverType == JT808_PROTOCOL_TYPE)
+	        {
+	            strncpy((char *)sysparam.jt808Server, item->item_data[2], 50);
+	            stringToLowwer(sysparam.jt808Server, strlen(sysparam.jt808Server));
+	            sysparam.jt808Port = atoi((const char *)item->item_data[3]);
+	            sprintf(message, "Update jt808 domain %s:%d;", sysparam.jt808Server, sysparam.jt808Port);
+
+	        }
+	        else if (serverType == ZHD_PROTOCOL_TYPE)
+	        {
+				strncpy((char *)sysparam.zhdServer, item->item_data[2], 50);
+				stringToLowwer(sysparam.zhdServer, strlen(sysparam.zhdServer));
+				sysparam.zhdPort = atoi((const char *)item->item_data[3]);		
+				if (item->item_data[4][0] != 0)
+				{
+					strncpy(sysparam.zhdUser, item->item_data[4], ZHD_LG_USER_LEN);
+					sysparam.zhdUser[ZHD_LG_USER_LEN] = 0;
+				}
+				if (item->item_data[5][0] != 0)
+				{
+					strncpy(sysparam.zhdPassword, item->item_data[5], ZHD_LG_PASSWORD_LEN);
+					sysparam.zhdPassword[ZHD_LG_PASSWORD_LEN] = 0;
+				}
+				sprintf(message, "Update zhd domain %s:%d user:%s password:%s;", 
+						sysparam.zhdServer, sysparam.zhdPort, sysparam.zhdUser, sysparam.zhdPassword);
+	        }
+	        else
+	        {
+	            strncpy((char *)sysparam.Server, item->item_data[2], 50);
+	            stringToLowwer(sysparam.Server, strlen(sysparam.Server));
+	            sysparam.ServerPort = atoi((const char *)item->item_data[3]);
+	            sprintf(message, "Update domain %s:%d;", sysparam.Server, sysparam.ServerPort);
+	        }
+			
+		    paramSaveAll();
+
+	        startTimer(30, serverChangeCallBack, 0);
 	    }
 	    else
 	    {
-	        sysparam.protocol = ZT_PROTOCOL_TYPE;
+	        sprintf(message, "Update domain fail,please check your param");
 	    }
-	    paramSaveAll();
-	    dynamicParamSaveAll();
-        startTimer(30, serverChangeCallBack, 0);
     }
-    else
-    {
-        sprintf(message, "Update domain fail,please check your param");
-    }
-
 }
 
 
@@ -610,8 +663,6 @@ static void doModeInstruction(ITEM *item, char *message)
 
     }
 }
-
-
 
 void dorequestSend123(void)
 {
@@ -1738,6 +1789,7 @@ static void doSystemshutdownInstruction(ITEM *item, char *message)
 
 	startTimer(30, systemShutdownHandle, 0);
 }
+
 static void doMotionDetInstruction(ITEM *item, char *message)
 {
     if (item->item_data[1][0] == 0 || item->item_data[1][0] == '?')
@@ -1758,6 +1810,29 @@ static void doMotionDetInstruction(ITEM *item, char *message)
         sysparam.gsInvalidCnt = sysparam.gsInvalidCnt > sysparam.gsValidCnt ? sysparam.gsValidCnt : sysparam.gsInvalidCnt;
         paramSaveAll();
         sprintf(message, "Update motion param to %d,%d,%d", sysparam.gsdettime, sysparam.gsValidCnt, sysparam.gsInvalidCnt);
+    }
+}
+
+static void doZhdsnInstruction(ITEM *item, char *message)
+{
+	if (item->item_data[1][0] == 0 || item->item_data[1][0] == '?')
+    {
+        sprintf(message, "Zhd sn:%s", sysparam.zhdsn);
+    }
+    else
+    {
+		if (strlen(item->item_data[1]) != ZHD_LG_SN_LEN)
+		{
+			strcpy(message, "Zhd sn length error");
+		}
+		else
+		{
+			strncpy(sysparam.zhdsn, item->item_data[1], ZHD_LG_SN_LEN);
+			sysparam.zhdsn[ZHD_LG_SN_LEN] = 0;
+			sprintf(message, "Update zhd sn %s", sysparam.zhdsn);
+			startTimer(30, serverChangeCallBack, 0);
+			paramSaveAll();
+		}		
     }
 }
 
@@ -1912,6 +1987,9 @@ static void doinstruction(int16_t cmdid, ITEM *item, insMode_e mode, void *param
 		case MOTIONDET_INS:
             doMotionDetInstruction(item, message);
             break;
+        case ZHDSN_INS:
+			doZhdsnInstruction(item, message);
+        	break;
         default:
             if (mode == SMS_MODE)
             {

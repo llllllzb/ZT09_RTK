@@ -14,6 +14,7 @@
 #include "app_peripheral.h"
 #include "app_db.h"
 #include "app_jt808.h"
+#include "app_zhdprotocol.h"
 
 static uint8_t instructionid[4];
 static uint8_t bleinstructionid[4];
@@ -941,15 +942,17 @@ unsigned short createProtocolSerial(void)
 
 void gpsRestoreSave(gpsRestore_s *gpsres)
 {
-    uint8_t restore[60], lens;
+    uint8_t restore[128] = { 0 }, lens, restorelen;
     uint8_t *data;
+    restorelen = sizeof(gpsRestore_s);
     data = (uint8_t *)gpsres;
+    LogPrintf(DEBUG_ALL, "gpsRestoreSave==>gpsres_size:%d", restorelen);
     strcpy(restore, "Save:");
     lens = strlen(restore);
-    byteToHexString(data, restore + lens, 20);
-    restore[lens + 40] = 0;
+    byteToHexString(data, restore + lens, restorelen);
+    restore[lens + restorelen * 2] = 0;
     LogMessage(DEBUG_ALL, (char *)restore);
-    dbSave(data, 20);
+    dbSave(data, sizeof(gpsRestore_s));
 }
 
 
@@ -966,7 +969,8 @@ void gpsRestoreUpload(void)
     uint8 readBuff[400], gpscount, i;
     char dest[1024];
     gpsRestore_s *gpsinfo;
-    readlen = dbCircularRead(readBuff, 400);
+    
+    readlen = dbCircularRead(readBuff, sizeof(gpsRestore_s) * DB_UPLOAD_MAX_CNT);
     if (readlen == 0)
         return;
     LogPrintf(DEBUG_ALL, "dbread:%d", readlen);
@@ -981,6 +985,10 @@ void gpsRestoreUpload(void)
         {
             datalen = jt808gpsRestoreDataSend((uint8_t *)dest + destlen, gpsinfo);
         }
+        else if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+        {
+			datalen = zhd_gp_restore_upload((uint8_t *)dest + destlen, gpsinfo);
+        }
         else
         {
             gpsRestoreDataSend(gpsinfo, dest + destlen, &datalen);
@@ -990,6 +998,10 @@ void gpsRestoreUpload(void)
     if (sysparam.protocol == JT808_PROTOCOL_TYPE)
     {
         jt808TcpSend((uint8_t *)dest, destlen);
+    }
+    else if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+    {
+		zhd_tcp_send(ZHD_LINK, (uint8_t *)dest, destlen);
     }
     else
     {

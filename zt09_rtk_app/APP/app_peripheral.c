@@ -174,7 +174,7 @@ void bleRecvParser(char *data, uint16_t len)
             devInfo.vol = atof(item.item_data[2]);
             devInfo.batLevel = atoi(item.item_data[3]);
 
-            bleServerAddInfo(devInfo);
+       
             tmos_start_task(appPeripheralTaskId, APP_UPDATE_MCU_RTC_EVENT, MS1_TO_SYSTEM_TIME(200));
         }
     }

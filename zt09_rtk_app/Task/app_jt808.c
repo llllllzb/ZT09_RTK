@@ -9,12 +9,13 @@
 #include "app_task.h"
 #include "app_server.h"
 #include "app_db.h"
+#include "app_protocol.h"
 static jt808Info_s jt808_info;
 static jt808Position_s jt808_position;
 static jt808TerminalRsp jt808_terminalRespon;
 static gpsRestore_s jt808_gpsres;
 
-extern void gpsRestoreSave(gpsRestore_s *gpsres);
+
 /**************************************************
 @bref		jt808相关初始化
 @param

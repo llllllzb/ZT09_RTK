@@ -15,6 +15,7 @@
 #include "app_jt808.h"
 #include "app_central.h"
 #include <math.h>
+#include "app_zhdprotocol.h"
 
 #define SYS_LED1_ON       LED1_ON
 #define SYS_LED1_OFF      LED1_OFF
@@ -378,7 +379,7 @@ void gpsUartRead(uint8_t *msg, uint16_t len)
     {
         if (gpsRestore[i] == '\n')
         {
-            if (/*sysinfo.nmeaOutPutCtl*/1)
+            if (sysinfo.nmeaOutPutCtl)
             {
                 LogWL(DEBUG_GPS, gpsRestore + begin, i - begin);
                 LogWL(DEBUG_GPS, "\r\n", 2);
@@ -585,6 +586,28 @@ void saveGpsHistory(void)
     }
 }
 
+/*把最后一个点放入发送缓冲区*/
+void getLastFixLocationFromFlash(void)
+{
+	gpsinfo_s *gpsinfo;
+	gpsinfo = getLastFixedGPSInfo();
+    tmos_memcpy(gpsinfo, &dynamicParam.gpsinfo, sizeof(gpsinfo_s));
+    LogPrintf(DEBUG_ALL, "Get last fix location, Latitude:%f, Longitude:%f", dynamicParam.gpsinfo.latitude, dynamicParam.gpsinfo.longtitude);
+}
+
+void saveLastFixLocationToFlash(void)
+{
+	gpsinfo_s *gpsinfo;
+	gpsinfo = getLastFixedGPSInfo();
+	if (gpsinfo->fixstatus != 1)
+	{
+		return;
+	}
+	tmos_memcpy(&dynamicParam.gpsinfo, gpsinfo, sizeof(gpsinfo_s));
+	LogPrintf(DEBUG_ALL, "Save last fix location, Latitude:%f, Longitude:%f", 
+				dynamicParam.gpsinfo.latitude, dynamicParam.gpsinfo.longtitude);
+	dynamicParamSaveAll();
+}
 
 /**************************************************
 @bref		gps控制任务
@@ -634,6 +657,7 @@ static void gpsRequestTask(void)
             	if (sysinfo.gpsRequest == 0)
             	{
 					saveGpsHistory();
+					saveLastFixLocationToFlash();
 					agpsRequestClear();
 					ntripRequestClear();
             	}
@@ -723,10 +747,15 @@ static void gpsUplodOnePointTask(void)
     /* 关闭高精度 */
     if (sysparam.gpsFilterType == GPS_FILTER_CLOSE)
     {
-		if (fixtick >= 10)
+    	//如果gps不是常开则10s后上报
+		if (gpsRequestGet(GPS_REQUEST_ACC_CTL) == 0)
 		{
-			goto UPLOAD;
+			if (fixtick >= 10)
+				goto UPLOAD;
 		}
+		//如果gps常开则立即上报
+		else
+			goto UPLOAD;
     }
 	/* DIFF */
     else if (sysparam.gpsFilterType == GPS_FILTER_DIFF)
@@ -778,6 +807,7 @@ UPLOAD:
 	}
 	protocolSend(NORMAL_LINK, PROTOCOL_12, getCurrentGPSInfo());
 	jt808SendToServer(TERMINAL_POSITION, getCurrentGPSInfo());
+	zhd_protocol_send(ZHD_PROTOCOL_GP, getCurrentGPSInfo());
 	gpsRequestClear(GPS_REQUEST_UPLOAD_ONE);
 
 }
@@ -981,11 +1011,11 @@ static void motionStateUpdate(motion_src_e src, motionState_e newState)
     }
     else
     {
-//        if (sysparam.gpsuploadgap != 0)
-//        {
-//            gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
-//            gpsRequestClear(GPS_REQUEST_ACC_CTL);
-//        }
+        if (sysparam.gpsuploadgap != 0)
+        {
+            gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
+            gpsRequestClear(GPS_REQUEST_ACC_CTL);
+        }
         
         terminalAccoff();
         updateRTCtimeRequest();
@@ -2208,8 +2238,17 @@ static void sysModeRunTask(void)
 
 void lbsRequestSet(uint8_t ext)
 {
-    sysinfo.lbsRequest = 1;
-    sysinfo.lbsExtendEvt |= ext;
+    if (sysparam.protocol == ZT_PROTOCOL_TYPE ||
+	    sysparam.protocol == JT808_PROTOCOL_TYPE)
+	{
+		sysinfo.lbsRequest = 1;
+		sysinfo.lbsExtendEvt |= ext;
+	    LogPrintf(DEBUG_ALL, "%s==>ext:0x%02x", __FUNCTION__, ext);
+	}
+	else
+	{
+		LogPrintf(DEBUG_ALL, "%s==>protocol unsupport", __FUNCTION__);
+	}
 }
 
 /**************************************************
@@ -2255,6 +2294,10 @@ static void lbsRequestTask(void)
         moduleGetLbs();
         startTimer(20, sendLbs, 0);
     }
+    else
+    {
+		sysinfo.lbsExtendEvt = 0;
+    }
 }
 
 /**************************************************
@@ -2299,8 +2342,17 @@ void wifiRspSuccess(void)
 
 void wifiRequestSet(uint8_t ext)
 {
-    sysinfo.wifiRequest = 1;
-    sysinfo.wifiExtendEvt |= ext;
+	if (sysparam.protocol == ZT_PROTOCOL_TYPE ||
+	    sysparam.protocol == JT808_PROTOCOL_TYPE)
+	{
+	    sysinfo.wifiRequest = 1;
+	    sysinfo.wifiExtendEvt |= ext;
+	    LogPrintf(DEBUG_ALL, "%s==>ext:0x%02x", __FUNCTION__, ext);
+	}
+	else
+	{
+		LogPrintf(DEBUG_ALL, "%s==>protocol unsupport", __FUNCTION__);
+	}
 }
 
 /**************************************************
@@ -2346,6 +2398,10 @@ static void wifiRequestTask(void)
 			startTimer(30, moduleGetWifiScan, 0);
         }
         //wifiTimeOutId = startTimer(300, wifiTimeout, 0);
+    }
+    else
+    {
+		sysinfo.wifiExtendEvt = 0;
     }
 }
 
@@ -2662,7 +2718,6 @@ void taskRunInSecond(void)
 {
     rebootEveryDay();
     gpsRequestTask();
-    moduleRequestTask();
     motionCheckTask();
 	if (sysparam.pwrOnoff)
 	{
@@ -2780,7 +2835,7 @@ void myTaskPreInit(void)
 {
     tmos_memset(&sysinfo, 0, sizeof(sysinfo));
     paramInit();
-    //sysinfo.logLevel = 9;
+    sysinfo.logLevel = 9;
     SetSysClock(CLK_SOURCE_HSE_16MHz);
     portGpioSetDefCfg();
     portModuleGpioCfg(1);
@@ -2794,7 +2849,8 @@ void myTaskPreInit(void)
     bleTryInit();
     socketListInit();
     //portSleepEn();
-	
+	zhd_protocol_init();
+	getLastFixLocationFromFlash();
 	portGsensorCtl(1);
     volCheckRequestSet();
     createSystemTask(ledTask, 1);

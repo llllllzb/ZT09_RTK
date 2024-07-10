@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include "app_sys.h"
-
+#include "app_gps.h"
 /*
  * DataFlash 分布
  * [0~1)        Total:1KB   bootloader
@@ -20,13 +20,14 @@
 #define APP_DYNAMIC_PARAM_ADDR	0x2400 //实际是0x00070000+APP_DYNAMIC_PARAM_ADDR
 #define APP_PARAM_FLAG          0x1b
 #define BOOT_PARAM_FLAG         0xB0
-#define OTA_PARAM_FLAG          0x22
+#define OTA_PARAM_FLAG          0x23
 
-#define EEPROM_VERSION									"ZT09N_RTK_V1.1.2"
+#define EEPROM_VERSION									"ZT09N_RTK_V1.2.0"
 
 
 #define JT808_PROTOCOL_TYPE			8
 #define ZT_PROTOCOL_TYPE			0
+#define ZHD_PROTOCOL_TYPE			9
 
 
 
@@ -90,7 +91,6 @@ typedef struct
     uint16_t jt808Port;
     uint16_t hiddenPort;
     uint16_t ServerPort;
-
 	uint16_t ntripServerPort;
 
     float  adccal;
@@ -128,6 +128,12 @@ typedef struct
     uint8_t ntripPassWord[50];
 
     uint8_t pwrOnoff;
+
+    uint8_t zhdServer[50];
+    uint8_t zhdsn[9];
+	uint8_t zhdUser[9];
+	uint8_t zhdPassword[9];
+	uint16_t zhdPort;
 } systemParam_s;
 
 /*存在EEPROM里的动态参数*/
@@ -138,7 +144,7 @@ typedef struct
     uint8_t jt808isRegister;
     uint8_t jt808AuthCode[50];
     uint8_t jt808AuthLen;
-
+	
     uint8_t bleLinkCnt;     
     uint16_t runTime;       /*模式二的工作时间，单位分钟*/
     uint16_t startUpCnt;
@@ -148,6 +154,7 @@ typedef struct
     double saveLat;
 	double saveLon;
 	uint32_t step;		//当天总步数，存储起来防止复位后当天步数丢失
+	gpsinfo_s gpsinfo;
 }dynamicParam_s;
 
 

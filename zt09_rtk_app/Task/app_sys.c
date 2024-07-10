@@ -384,7 +384,7 @@ void strToUppper(char *data, uint16_t len)
     uint8_t i;
     for (i = 0; i < len; i++)
     {
-        if (data[i] >= 'a' && data[i] < 'z')
+        if (data[i] >= 'a' && data[i] <= 'z')
         {
             data[i] = data[i] - 'a' + 'A';
         }

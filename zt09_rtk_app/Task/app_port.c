@@ -1775,7 +1775,7 @@ float portGetAdcVol(ADC_SingleChannelTypeDef channel)
 	    ADC_ExtSingleChSampInit(SampleFreq_8, ADC_PGA_0);
 	    ADC_ExcutSingleConver();
 	    x[i] = (ADC_ExcutSingleConver() / 2048.0) * 1.05;
-	    if (value >= 2.0)
+	    if (x[i] >= 2.0)
 	    {
 	        ADC_ExtSingleChSampInit(SampleFreq_8, ADC_PGA_1_2);
 	        ADC_ExcutSingleConver();
