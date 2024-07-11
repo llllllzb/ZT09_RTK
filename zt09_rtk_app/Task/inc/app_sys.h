@@ -76,6 +76,8 @@ typedef struct
 	uint8_t mode4First				: 1;
 	uint8_t ntripRequest			: 1;
 	uint8_t moduleSupplyStatus		: 1;
+	uint8_t rtcUpdateSuccess		: 1;	//只要rtc更新过一次就算成功
+	uint8_t gsensorIntFlag			: 1;
 	uint16_t debug;
     uint8_t lbsExtendEvt;
     uint8_t wifiExtendEvt;
@@ -108,6 +110,7 @@ typedef struct
     uint32_t runStartTick;  /*开机节拍*/
     uint32_t gpsUpdatetick;
     uint32_t oneMinTick;	/*一分钟节拍，低功耗专用*/
+	uint32_t staticUploadTick;
 
     float outsidevoltage;
     float insidevoltage;
@@ -135,6 +138,8 @@ typedef struct
 	uint8_t moduleFsm;
     uint8_t moduleReq;		//这个请求是互斥的，不是或的关系
     uint16_t moduleFsmTick;
+    uint16_t net_timeout_tick;
+    uint16_t gps_timeout_tick;
 } SystemInfoTypedef;
 
 extern SystemInfoTypedef sysinfo;

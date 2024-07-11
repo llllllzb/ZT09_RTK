@@ -20,7 +20,7 @@
 #define APP_DYNAMIC_PARAM_ADDR	0x2400 //实际是0x00070000+APP_DYNAMIC_PARAM_ADDR
 #define APP_PARAM_FLAG          0x1b
 #define BOOT_PARAM_FLAG         0xB0
-#define OTA_PARAM_FLAG          0x23
+#define OTA_PARAM_FLAG          0x24
 
 #define EEPROM_VERSION									"ZT09N_RTK_V1.2.0"
 
@@ -134,6 +134,8 @@ typedef struct
 	uint8_t zhdUser[9];
 	uint8_t zhdPassword[9];
 	uint16_t zhdPort;
+	uint16_t sleep_start;	//只作用于模式2,单位是分钟
+	uint16_t sleep_end;
 } systemParam_s;
 
 /*存在EEPROM里的动态参数*/

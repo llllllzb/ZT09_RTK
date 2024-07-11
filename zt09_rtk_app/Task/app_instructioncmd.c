@@ -64,6 +64,7 @@ const instruction_s insCmdTable[] =
     {SYSTEMSHUTDOWN_INS, "SYSTEMSHUTDOWN"},
     {MOTIONDET_INS, "MOTIONDET"},
     {ZHDSN_INS, "ZHDSN"},
+    {SLEEP_INS, "SLEEP"},
 };
 
 static insMode_e mode123;
@@ -899,6 +900,7 @@ void doDebugInstrucion(ITEM *item, char *message)
 	sprintf(message + strlen(message), "CHARGE_READ:%d pwron:%d", CHARGE_READ, sysparam.pwrOnoff);
 	sprintf(message + strlen(message), "charge:%d debug:%x", sysinfo.doChargeFlag, sysinfo.debug);
 	sprintf(message + strlen(message), "ledtick:%d", sysinfo.ledTick);
+	sprintf(message + strlen(message), "sysfsm:%d", sysinfo.runFsm);
 }
 
 void doACCCTLGNSSInstrucion(ITEM *item, char *message)
@@ -1836,6 +1838,70 @@ static void doZhdsnInstruction(ITEM *item, char *message)
     }
 }
 
+//只作用于模式2
+static void doSleepInstruction(ITEM *item, char *message)
+{
+	uint16_t valueofminute1, valueofminute2;
+	if (item->item_data[1][0] == 0 || item->item_data[1][0] == '?')
+    {
+        sprintf(message, "Sleep:%.2d:%.2d ~ %.2d:%.2d", sysparam.sleep_start / 60, sysparam.sleep_start % 60,
+        					sysparam.sleep_end / 60, sysparam.sleep_end % 60);
+    }
+    else
+    {
+    	if (item->item_cnt == 2 && atoi(item->item_data[1]) == 0)
+    	{
+    		sysparam.sleep_start = 0;
+    		sysparam.sleep_end   = 0;
+			strcpy(message, "Disable sleep time");
+    	}
+		else if (item->item_cnt != 3)
+		{
+			strcpy(message, "Please enter sleep time and wakeup time");
+		}
+		else
+		{
+			if (strlen(item->item_data[1]) < 3 && strlen(item->item_data[1]) > 4)
+			{
+				strcpy(message, "Please enter true sleep time");
+				return;
+			}
+			if (strlen(item->item_data[2]) < 3 && strlen(item->item_data[2]) > 4)
+			{
+				strcpy(message, "Please enter true wakeup time");
+				return;
+			}
+			if (atoi(item->item_data[1]) == atoi(item->item_data[2]))
+			{
+				strcpy(message, "Sleep time and wakeup time can not be the same");
+				return;
+			}
+			valueofminute1 = atoi(item->item_data[1]);
+			valueofminute2 = atoi(item->item_data[2]);
+			if (((valueofminute1 / 100) > 23) || ((valueofminute2 / 100) > 23))
+			{
+				strcpy(message, "Please enter true sleep time or true wakeup time");
+				return;
+			}
+			sysparam.sleep_start = valueofminute1 / 100 * 60 + valueofminute1 % 100;
+			sysparam.sleep_end = valueofminute2 / 100 * 60 + valueofminute2 % 100;
+			sprintf(message, "Update sleep time %.2d:%.2d ~ %.2d:%.2d", 
+							sysparam.sleep_start / 60, sysparam.sleep_start % 60,
+        					sysparam.sleep_end / 60, sysparam.sleep_end % 60);
+        	if (sysparam.MODE == MODE2)
+        	{
+				if (isWithinSleepTime() == 0)
+				{
+					portGsensorCtl(1);
+					portGsensorIntCfg(1);
+				}
+        	}
+        	paramSaveAll();
+		}
+    }
+}
+
+
 /*--------------------------------------------------------------------------------------*/
 static void doinstruction(int16_t cmdid, ITEM *item, insMode_e mode, void *param)
 {
@@ -1989,6 +2055,9 @@ static void doinstruction(int16_t cmdid, ITEM *item, insMode_e mode, void *param
             break;
         case ZHDSN_INS:
 			doZhdsnInstruction(item, message);
+        	break;
+        case SLEEP_INS:
+        	doSleepInstruction(item, message);
         	break;
         default:
             if (mode == SMS_MODE)

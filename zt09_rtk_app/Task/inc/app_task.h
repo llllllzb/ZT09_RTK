@@ -2,6 +2,7 @@
 #define APP_TASK
 #include <stdint.h>
 #include "app_central.h"
+#include "app_gps.h"
 #define SYSTEM_LED_RUN					0X01
 #define SYSTEM_LED_NETOK				0X02
 #define SYSTEM_LED_GPSOK				0X04	//普通GPS
@@ -88,6 +89,12 @@ typedef struct
 	
 	
 } SystemLEDInfo;
+
+typedef struct
+{
+	uint8_t   init;		//表示基准点已生成
+	gpsinfo_s gpsinfo;
+}centralPoint_s;
 
 typedef enum
 {
@@ -209,6 +216,10 @@ void motionClear(void);
 float getTemp(void);
 float readTemp(float adcV);
 uint8_t gpsInWait(void);
+void centralPointInit(gpsinfo_s *gpsinfo);
+void centralPointClear(void);
+void centralPointGet(gpsinfo_s *dest);
+void updateHistoryGpsTime(gpsinfo_s *gpsinfo);
 
 void wakeUpByInt(uint8_t     type,uint8_t sec);
 
@@ -231,6 +242,7 @@ void bleScanCallBack(deviceScanList_s *list);
 void bleConnCallBack(void);
 void sosRequestSet(void);
 void systemShutdownHandle(void);
+int isWithinSleepTime(void);
 
 void doDebugRecvPoll(uint8_t *msg, uint16_t len);
 void gpsUartRead(uint8_t *msg, uint16_t len);

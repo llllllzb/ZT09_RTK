@@ -648,7 +648,6 @@ void portGpioWakeupIRQHandler(void)
 		}
 		sysinfo.doMotionFlag = 0;
 	}
-
 }
 
 /**
@@ -1053,6 +1052,8 @@ uint8_t iicWriteData(uint8_t addr, uint8_t reg, uint8_t data)
  * @param
  *      onoff
  * @return
+
+ * 由于牛羊软件需要步数记录, 因此存在开启gsensor但关闭中断的操作,所以gsensor开启和中断开启分开管理
  */
 void portGsensorCtl(uint8_t onoff)
 {
@@ -1095,7 +1096,10 @@ void portGsensorCtl(uint8_t onoff)
 //        GPIOB_ModeCfg(GSINT_PIN, GPIO_ModeIN_PD);
 //        R16_PB_INT_EN &= ~GSINT_PIN;
 		portGsensorIntCfg(0);
-
+		terminalAccoff();
+        motionClear();
+        gpsRequestClear(GPS_REQUEST_ACC_CTL); //如果acc off要关闭gps的acc请求
+		
     }
     LogPrintf(DEBUG_ALL, "gsensor %s", onoff ? "On" : "Off");
 }
@@ -1122,14 +1126,19 @@ void portGsensorIntCfg(uint8_t onoff)
 	    }
         PFIC_EnableIRQ(GPIO_B_IRQn);
         mir3da_open_interrupt(10);
+        sysinfo.gsensorIntFlag = 1;
 	}
 	else
 	{
 		GPIOB_ModeCfg(GSINT_PIN, GPIO_ModeIN_PD);
         R16_PB_INT_EN &= ~GSINT_PIN;
         mir3da_close_interrupt();
-	}
-
+        sysinfo.gsensorIntFlag = 0;
+        terminalAccoff();
+        motionClear();
+        gpsRequestClear(GPS_REQUEST_ACC_CTL); //如果acc off要关闭gps的acc请求
+	}
+	LogPrintf(DEBUG_ALL, "gsensor int %s", onoff ? "On" : "Off");
 }
 
 /**

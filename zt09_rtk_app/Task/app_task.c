@@ -25,6 +25,7 @@ static SystemLEDInfo sysledinfo;
 motionInfo_s motionInfo;
 static bleScanTry_s bleTry;
 static int8_t wifiTimeOutId = -1;
+static centralPoint_s centralPoi;
 
 /**************************************************
 @bref		bit0 置位，布防
@@ -289,7 +290,7 @@ static void ledTask(void)
 			tick = 0;
 			NTC_OFF;
 		}
-		LogPrintf(DEBUG_ALL, "temtask==>tick:%d, temp:%f", tick, sysinfo.temprature);
+		LogPrintf(DEBUG_ALL, "temptask==>tick:%d, temp:%f", tick, sysinfo.temprature);
 		return;
 	}
 	if (sysparam.ledctrl == 0)
@@ -368,12 +369,14 @@ void gpsUartRead(uint8_t *msg, uint16_t len)
     static uint8_t gpsRestore[UART_RECV_BUFF_SIZE + 1];
     static uint16_t size = 0;
     uint16_t i, begin;
+    uint16_t relen;
     if (len + size > UART_RECV_BUFF_SIZE)
     {
         size = 0;
     }
-    memcpy(gpsRestore + size, msg, len);
-    size += len;
+    relen = len > UART_RECV_BUFF_SIZE ? UART_RECV_BUFF_SIZE : len;
+    memcpy(gpsRestore + size, msg, relen);
+    size += relen;
     begin = 0;
     for (i = 0; i < size; i++)
     {
@@ -610,6 +613,92 @@ void saveLastFixLocationToFlash(void)
 }
 
 /**************************************************
+@bref		生成最后一次定位点
+@param
+@return
+@note
+**************************************************/
+
+void centralPointInit(gpsinfo_s *gpsinfo)
+{
+	centralPoi.init = 1;
+	tmos_memcpy(&centralPoi.gpsinfo, gpsinfo, sizeof(gpsinfo_s));
+	LogPrintf(DEBUG_ALL, "%s==>lat:%.2f, lon:%.2f", __FUNCTION__,
+				centralPoi.gpsinfo.latitude, centralPoi.gpsinfo.longtitude);
+}
+
+/**************************************************
+@bref		清除最后一次定位点
+@param
+@return
+@note
+**************************************************/
+
+void centralPointClear(void)
+{
+	centralPoi.init = 0;
+	tmos_memset(&centralPoi.gpsinfo, 0, sizeof(gpsinfo_s));
+	LogPrintf(DEBUG_ALL, "%s==>OK", __FUNCTION__);
+}
+
+/**************************************************
+@bref		获取最后一次定位点
+@param
+@return
+@note
+**************************************************/
+
+void centralPointGet(gpsinfo_s *dest)
+{
+	tmos_memcpy(dest, &centralPoi.gpsinfo, sizeof(gpsinfo_s));
+	LogPrintf(DEBUG_ALL, "%s==>OK", __FUNCTION__);
+}
+
+/**************************************************
+@bref		修改定位包的时间
+@param
+@return
+@note
+把历史已发送成功的定位包修改成现在的时间的定位包
+**************************************************/
+
+void updateHistoryGpsTime(gpsinfo_s *gpsinfo)
+{
+	uint16_t year;
+	uint8_t  month;
+	uint8_t day;
+	uint8_t hour;
+	uint8_t minute;
+	uint8_t second;
+	datetime_s datetimenew;
+	portGetRtcDateTime(&year, &month, &day, &hour, &minute, &second);
+	gpsinfo->datetime.year   = year % 100;
+	gpsinfo->datetime.month  = month;
+	gpsinfo->datetime.day    = day;
+	gpsinfo->datetime.hour   = hour;
+	gpsinfo->datetime.minute = minute;
+	gpsinfo->datetime.second = second;
+	gpsinfo->hadupload       = 0;
+	datetimenew = changeUTCTimeToLocalTime(gpsinfo->datetime, -sysparam.utc);//减回0时区
+	gpsinfo->datetime.year   = datetimenew.year % 100;
+	gpsinfo->datetime.month  = datetimenew.month;
+	gpsinfo->datetime.day    = datetimenew.day;
+	gpsinfo->datetime.hour   = datetimenew.hour;
+	gpsinfo->datetime.minute = datetimenew.minute;
+	gpsinfo->datetime.second = datetimenew.second;
+	LogPrintf(DEBUG_ALL, "gpsRequestSet==>Upload last fixed poi [%02d/%02d/%02d-%02d/%02d/%02d]:lat:%.2f  lon:%.2f", 
+														    year % 100, 
+														    month,
+														    day,
+														    hour,
+														    minute,
+														    second,
+														    gpsinfo->latitude,
+														    gpsinfo->longtitude);
+}
+
+
+/**************************************************
 @bref		gps控制任务
 @param
 @return
@@ -809,6 +898,10 @@ UPLOAD:
 	jt808SendToServer(TERMINAL_POSITION, getCurrentGPSInfo());
 	zhd_protocol_send(ZHD_PROTOCOL_GP, getCurrentGPSInfo());
 	gpsRequestClear(GPS_REQUEST_UPLOAD_ONE);
+	if (getTerminalAccState() == 0 && centralPoi.init == 0)
+    {
+		centralPointInit(getCurrentGPSInfo());
+    }
 
 }
 
@@ -1008,6 +1101,7 @@ static void motionStateUpdate(motion_src_e src, motionState_e newState)
         }
         terminalAccon();
         hiddenServerCloseClear();
+        centralPointClear();
     }
     else
     {
@@ -1110,7 +1204,7 @@ static uint16_t motionCheckOut(uint8_t sec)
 void motionClear(void)
 {
 	LogMessage(DEBUG_ALL, "motionClear==>OK");
-	memset(motionInfo.tapCnt, 0, sizeof(motionInfo.tapCnt));
+	memset(&motionInfo, 0, sizeof(motionInfo_s));
 }
 
 /**************************************************
@@ -1567,6 +1661,135 @@ static void modeShutDownQuickly(void)
 }
 
 /**************************************************
+@bref		设备rtc时间是否处于休眠时间
+@param
+@return
+	-1:未开启mode2 休眠时间功能
+	 0:已开启mode2休眠时间功能,但未处于休眠时间
+	 1:已开启mode2休眠时间功能,已处于休眠时间
+@note
+**************************************************/
+
+int isWithinSleepTime(void)
+{
+	uint16_t rtc_mins;
+	//rtcUpdateSuccess这个标志也可以充当是否是第一次上电标志
+	if (sysinfo.rtcUpdateSuccess == 0)
+		return -1;
+	if (sysparam.sleep_start == 0 && sysparam.sleep_end == 0)
+		return -1;
+	if (sysparam.sleep_start == 0xffff || sysparam.sleep_end == 0xffff)
+		return -1;
+	uint16_t year;
+    uint8_t month, date, hour, minute, second;
+    //获取rtc时间
+    portGetRtcDateTime(&year, &month, &date, &hour, &minute, &second);
+    rtc_mins  = (hour & 0x1F) * 60;
+    rtc_mins += (minute & 0x3f);
+    
+    LogPrintf(DEBUG_ALL, "%s==>rtc minutes:%.2d:%.2d sleep minutes:%.2d:%.2d wakeup minutes:%.2d:%.2d", 
+    					__FUNCTION__, hour, minute, sysparam.sleep_start / 60, sysparam.sleep_start % 60, 
+    					sysparam.sleep_end / 60, sysparam.sleep_end % 60);
+    //sysparam.sleep_end > sysparam.sleep_start表示休眠和唤醒时间是同一天
+    //________~~~~~~~~~~~~~~~~________
+    if (sysparam.sleep_end > sysparam.sleep_start)
+    {
+		if (rtc_mins >= sysparam.sleep_start && rtc_mins < sysparam.sleep_end)
+		{
+			LogPrintf(DEBUG_ALL, "Within sleep time");
+			return 1;
+		}
+		else
+		{
+			LogPrintf(DEBUG_ALL, "No within sleep time");
+			return 0;
+		}
+    }
+    //~~~~~~~~~~__________~~~~~~~~~~~
+    else if (sysparam.sleep_end < sysparam.sleep_start)
+    {
+		if (rtc_mins < sysparam.sleep_end || rtc_mins >= sysparam.sleep_start)
+		{
+			LogPrintf(DEBUG_ALL, "Within sleep time");
+			return 1;
+		}
+		else
+		{
+			LogPrintf(DEBUG_ALL, "No within sleep time");
+			return 0;
+		}
+    }
+    else
+    {
+    	LogPrintf(DEBUG_ALL, "Unkonw error, No within sleep time");
+    	return 0;
+    }
+}
+
+/**************************************************
+@bref		mode2 sleep time快速关闭
+@param
+@return
+@note
+**************************************************/
+
+static void mode2SleepQuickly(void)
+{
+	static uint16_t tick = 0;
+	if (sysinfo.rtcUpdateSuccess == 0 ||
+		(sysparam.sleep_start == 0 && sysparam.sleep_end == 0) ||
+		(sysparam.sleep_start == 0xffff || sysparam.sleep_end == 0xffff))
+	{
+		if (sysinfo.gsensorOnoff == 0)
+			portGsensorCtl(1);
+		if (sysinfo.gsensorIntFlag == 0)
+			portGsensorIntCfg(1);
+		return;
+	}
+	//联网超时计时
+	if (primaryServerIsReady() == 0)
+		sysinfo.net_timeout_tick++;
+	else sysinfo.net_timeout_tick = 0;
+	LogPrintf(DEBUG_ALL, "%s==>net_timeout_tick:%d gps_timeout_tick:%d tick:%d", __FUNCTION__,
+						sysinfo.net_timeout_tick, sysinfo.gps_timeout_tick, tick);
+	
+	//联网超时处理
+	if (sysinfo.net_timeout_tick >= 210)
+	{
+		sysinfo.net_timeout_tick = 0;
+		tick = 0;
+		changeModeFsm(MODE_STOP); //执行完毕，关机
+		portGsensorCtl(0);
+		LogPrintf(DEBUG_ALL, "%s==>net_timeout,shutdown", __FUNCTION__);
+	}
+	//查询是否处在休眠时间段
+
+	if (isWithinSleepTime() > 0)
+	{
+		sysinfo.gps_timeout_tick++;
+		portGsensorCtl(0);
+		//如果处于单次定位
+		if (gpsRequestGet(GPS_REQUEST_UPLOAD_ONE))
+			tick = 0;
+		if (tick++ >= 10 || sysinfo.gps_timeout_tick >= 180)
+		{
+			tick = 0;
+			sysinfo.gps_timeout_tick = 0;
+			changeModeFsm(MODE_STOP); //执行完毕，关机
+			LogPrintf(DEBUG_ALL, "%s==>job finish,shutdown", __FUNCTION__);
+		}
+	}
+	else 
+	{
+		sysinfo.gps_timeout_tick = 0;
+		if (sysinfo.gsensorOnoff == 0)
+			portGsensorCtl(1);
+		if (sysinfo.gsensorIntFlag == 0)
+			portGsensorIntCfg(1);
+	}
+}
+
+/**************************************************
 @bref		mode4切回在网模式
 @param
 @return
@@ -1788,32 +2011,61 @@ static void modeStart(void)
     switch (sysparam.MODE)
     {
         case MODE1:
+			portGsensorCtl(0);
             portGsensorIntCfg(0);
             dynamicParam.startUpCnt++;
             dynamicParamSaveAll();
             portSetNextAlarmTime();
             break;
         case MODE2:
+			portGsensorCtl(1);
 			portGsensorIntCfg(1);
-            if (sysparam.accctlgnss == 0)
-            {
-                gpsRequestSet(GPS_REQUEST_GPSKEEPOPEN_CTL);
-            }
-            break;
+			if (sysparam.accctlgnss == 0)
+			{
+				gpsRequestSet(GPS_REQUEST_GPSKEEPOPEN_CTL);
+			}
+			break;
+        
+//        	if (isWithinSleepTime())
+//        	{
+//				portGsensorIntCfg(0);
+//				modeTryToStop();
+//        	}
+//        	else
+//        	{
+//				portGsensorIntCfg(1);
+//				if (sysparam.accctlgnss == 0)
+//	            {
+//	                gpsRequestSet(GPS_REQUEST_GPSKEEPOPEN_CTL);
+//	            }
+//	           	LogPrintf(DEBUG_ALL, "modeStart==>%02d/%02d/%02d %02d:%02d:%02d", year, month, date, hour, minute, second);
+//			    LogPrintf(DEBUG_ALL, "Mode:%d, startup:%d debug:%d %d", sysparam.MODE, dynamicParam.startUpCnt, sysparam.debug, dynamicParam.debug);
+//			    lbsRequestSet(DEV_EXTEND_OF_MY);
+//			    //wifiRequestSet(DEV_EXTEND_OF_MY);
+//			    gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
+//			    modulePowerOn();
+//			    netResetCsqSearch();
+//			    changeModeFsm(MODE_RUNING);
+//        	}
+//            return;
         case MODE3:
+			portGsensorCtl(0);
 			portGsensorIntCfg(0);
             dynamicParam.startUpCnt++;
             dynamicParamSaveAll();
             break;
         case MODE21:
+        	portGsensorCtl(1);
  			portGsensorIntCfg(1);
             portSetNextAlarmTime();
             break;
         case MODE23:
+        	portGsensorCtl(1);
 			portGsensorIntCfg(1);
             break;
         /*离线模式*/
         case MODE4:
+        	portGsensorCtl(0);
         	portGsensorIntCfg(0);
 		    modulePowerOn();
 		    netResetCsqSearch();
@@ -1874,6 +2126,7 @@ static void modeRun(void)
             //该模式下每隔3分钟记录时长
             sysRunTimeCnt();
             gpsUploadPointToServer();
+            mode2SleepQuickly();
             break;
         case MODE21:
         case MODE23:
@@ -1922,6 +2175,8 @@ static void modeStop(void)
 static void modeDone(void)
 {
 	static uint8_t motionTick = 0;
+	sysinfo.net_timeout_tick = 0;
+	sysinfo.gps_timeout_tick = 0;
 	//保证关机时不会有gps请求
 	if (sysparam.pwrOnoff == 0)
 	{
@@ -1949,9 +2204,10 @@ static void modeDone(void)
     {
 		/*检测gsensor是否有中断进来*/
 		//LogPrintf(DEBUG_ALL, "motioncnt:%d, motionTick:%d ", motionCheckOut(sysparam.gsdettime), motionTick);
-		if (motionCheckOut(sysparam.gsdettime) < 1)
+		if ((sysinfo.gsensorOnoff && motionCheckOut(sysparam.gsdettime) < 1) || 
+			 sysinfo.gsensorOnoff == 0)
 		{
-			if (sysinfo.sleep)
+			if (sysinfo.sleep && getModulePwrState() == 0)
 			{
 				tmos_set_event(sysinfo.taskId, APP_TASK_STOP_EVENT);
 				motionTick = 0;
@@ -2062,29 +2318,64 @@ static void sysAutoReq(void)
 			sysinfo.mode4NoNetTick = 0;
 		}
     }
-    else
+    else if (sysparam.MODE == MODE23 || sysparam.MODE == MODE2)
     {
-       	//模式2没网络逻辑
-    	if (isModeDone() && sysparam.MODE == MODE2)
-        {
+		//模式2没网络逻辑/或者处于休眠时间段
+		if (isModeDone() && sysparam.MODE == MODE2)
+		{
+			//表示处于休眠时间段
+			if (isWithinSleepTime() > 0)
+			{
+				LogPrintf(DEBUG_ALL, "sleep zZzZzZ..");
+				noNetTick = 60;//立即唤醒
+				return;
+			}
 			noNetTick++;
-			LogPrintf(DEBUG_ALL, "mode2NoNetTick:%d ", noNetTick);
+			LogPrintf(DEBUG_ALL, "mode2NoNetTick:%d  check net gap:60", noNetTick);
 			if (noNetTick >= 60)
 			{
 				noNetTick = 0;
 				LogMessage(DEBUG_ALL, "mode 2 restoration network");
-                if (sysinfo.kernalRun == 0)
-                {
-                	volCheckRequestSet();
-                    tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
-                }
-	            changeModeFsm(MODE_START);
+				if (sysinfo.kernalRun == 0)
+				{
+					volCheckRequestSet();
+					tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
+				}
+				changeModeFsm(MODE_START);
 			}
-        }
-        else
-        {
+		}
+		else
+		{
 			noNetTick = 0;
-        }
+		}
+
+		if (sysparam.gapMinutes != 0)
+		{
+			sysinfo.staticUploadTick++;
+			if (sysinfo.staticUploadTick % sysparam.gapMinutes == 0)
+			{
+				sysinfo.staticUploadTick = 0;
+				LogMessage(DEBUG_ALL, "static upload period");
+	            if (sysinfo.kernalRun == 0)
+	            {
+	            	volCheckRequestSet();
+	                tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
+	            }
+	            if (getTerminalAccState() == 0 && centralPoi.init)
+				{
+					netRequestSet();
+				}
+				else
+				{
+            		gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
+            	}
+	            if (isModeDone())
+	            	changeModeFsm(MODE_START);
+            }
+    	}
+    }
+    else
+    {
         if (sysparam.gapMinutes != 0)
         {
             sysinfo.sysMinutes++;
@@ -2157,17 +2448,17 @@ uint8_t SysBatDetection(void)
 	/*可以工作*/
 	else
 	{
-		if (sysinfo.canRunFlag == 1)
-		{
-			if (sysparam.MODE == MODE2 || sysparam.MODE == MODE21 || sysparam.MODE == MODE23)
-			{
-				if (sysparam.pwrOnoff && sysinfo.gsensorOnoff == 0)
-				{
-					portGsensorCtl(1);
-					portGsensorIntCfg(1);
-				}
-			}
-		}
+//		if (sysinfo.canRunFlag == 1)
+//		{
+//			if (sysparam.MODE == MODE2 || sysparam.MODE == MODE21 || sysparam.MODE == MODE23)
+//			{
+//				if (sysparam.pwrOnoff && sysinfo.gsensorOnoff == 0)
+//				{
+//					portGsensorCtl(1);
+//					portGsensorIntCfg(1);
+//				}
+//			}
+//		}
 	}
 	return 1;
 }
@@ -2623,7 +2914,7 @@ static void gsCheckTask(void)
 {
     static uint8_t tick = 0;
     static uint8_t errorcount = 0;
-    if (sysinfo.gsensorOnoff == 0)
+    if (sysinfo.gsensorOnoff == 0 || sysinfo.gsensorIntFlag == 0)
     {
         tick = 0;
         return;
@@ -2851,7 +3142,6 @@ void myTaskPreInit(void)
     //portSleepEn();
 	zhd_protocol_init();
 	getLastFixLocationFromFlash();
-	portGsensorCtl(1);
     volCheckRequestSet();
     createSystemTask(ledTask, 1);
     createSystemTask(outputNode, 2);
@@ -2987,7 +3277,5 @@ void myTaskInit(void)
     tmos_set_event(sysinfo.taskId, APP_TASK_RUN_EVENT);
     tmos_start_reload_task(sysinfo.taskId, APP_TASK_POLLUART_EVENT, MS1_TO_SYSTEM_TIME(50));
     tmos_start_reload_task(sysinfo.taskId, APP_TASK_ONEMINUTE_EVENT, MS1_TO_SYSTEM_TIME(60000));
-//	tmos_start_reload_task(sysinfo.taskId, APP_TASK_TENSEC_EVENT, MS1_TO_SYSTEM_TIME(10000));
-
 }
 
