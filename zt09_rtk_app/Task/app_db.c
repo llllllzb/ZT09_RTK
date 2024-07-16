@@ -205,6 +205,8 @@ uint8_t dbUpload(void)
     uint16_t destlen, datalen;
     uint8_t dest[1024];
     gpsRestore_s *gpsinfo;
+    uint8_t upload_cnt;
+
     if (gpsdb.size == 0)
     {
         return 0;
@@ -214,10 +216,18 @@ uint8_t dbUpload(void)
         gpsdb.upSize = gpsdb.size = 0;
         return 0;
     }
+    if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+    {
+		upload_cnt = DB_UPLOAD_ZHD_MAX_CNT;
+    }
+    else
+    {
+		upload_cnt = DB_UPLOAD_ZT_MAX_CNT;
+    }
 
     //一次性最多上送20条
     gpscount = (gpsdb.size - gpsdb.upSize) / sizeof(gpsRestore_s);
-    gpscount = gpscount > DB_UPLOAD_MAX_CNT ? DB_UPLOAD_MAX_CNT : gpscount;
+    gpscount = gpscount > upload_cnt ? upload_cnt : gpscount;
 
     if (gpscount == 0)
     {

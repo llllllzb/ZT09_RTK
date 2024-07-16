@@ -70,6 +70,7 @@ typedef struct
 
 void moduleRspSuccess(void);
 void hbtRspSuccess(void);
+void privateHbtTickReset(void);
 
 void privateServerReconnect(void);
 void privateServerLoginSuccess(void);

@@ -268,7 +268,10 @@ static void atCmdNmeaParser(uint8_t *buf, uint16_t len)
     char buff[80];
     if (my_strstr((char *)buf, "ON", len))
     {
-        strcpy(buff, "$QXCFGMSG,1,4,1*0A\r\n");
+    	if (sysinfo.gpstype == GPS_QIANXUN)
+        	strcpy(buff, "$QXCFGMSG,1,4,1*0A\r\n");
+        else if (sysinfo.gpstype == GPS_SIMPLE)
+        	strcpy(buff, "$POLCFGMSG,0,2,0\r\n");
         portUartSend(&usart0_ctl, buff, strlen(buff));
         LogMessage(DEBUG_FACTORY, "NMEA ON OK");
         sysinfo.nmeaOutPutCtl = 1;

@@ -275,8 +275,8 @@ void zhd_gp_info_register(gpsinfo_s *gpsinfo, uint8_t level)
 	zhd_gp.altitude  = gpsinfo->hight;
 	zhd_gp.accuracy  = gpsinfo->fixAccuracy;
 	zhd_gp.speed     = (float)gpsinfo->speed;
-
-	datetimenew = changeUTCTimeToLocalTime(gpsinfo->datetime, sysparam.utc);
+	//用的是utc时间,时区写死为0
+	datetimenew = changeUTCTimeToLocalTime(gpsinfo->datetime, 0);
 	i = 0;
 	zhd_gp.datetime[i++] = '2';
 	zhd_gp.datetime[i++] = '0';

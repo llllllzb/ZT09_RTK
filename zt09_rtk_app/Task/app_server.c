@@ -215,6 +215,19 @@ static void privateServerSocketRecv(char *data, uint16_t len)
         }
     }
 }
+
+/**************************************************
+@bref       重置心跳包计时
+@param
+@return
+@note
+**************************************************/
+
+void privateHbtTickReset(void)
+{
+    privateServConn.heartbeattick = 1;
+}
+
 /**************************************************
 @bref		主服务器连接任务
 @param
@@ -874,27 +887,27 @@ void zhdServerConnTask(void)
 		{
 			moduleGetCsq();
 		}
-		if (zhdServConn.heartbeattick % sysparam.heartbeatgap == 0)
-		{
-            zhdServConn.heartbeattick = 0;
-            if (timeOutId == -1)
-            {
-                timeOutId = startTimer(120, moduleRspTimeout, 0);
-            }
-            if (hbtTimeOutId == -1)
-            {
-                hbtTimeOutId = startTimer(1800, hbtRspTimeOut, 0);
-            }
-            //发送心跳包的时候,要判断此时是否gps定位,不定位,修改accuracy
-            gpsinfo = getCurrentGPSInfo();
-            if (gpsinfo->fixstatus == 0)
-            {
-            	gpsinfo = getLastFixedGPSInfo();
-            	gpsinfo->fixAccuracy = 0;
-            }
-            zhd_protocol_send(ZHD_PROTOCOL_GP, gpsinfo);
-            netRequestClear();
-        }
+//		if (zhdServConn.heartbeattick % sysparam.heartbeatgap == 0)
+//		{
+//            zhdServConn.heartbeattick = 0;
+//            if (timeOutId == -1)
+//            {
+//                timeOutId = startTimer(120, moduleRspTimeout, 0);
+//            }
+//            if (hbtTimeOutId == -1)
+//            {
+//                hbtTimeOutId = startTimer(1800, hbtRspTimeOut, 0);
+//            }
+//            //发送心跳包的时候,要判断此时是否gps定位,不定位,修改accuracy
+//            gpsinfo = getCurrentGPSInfo();
+//            if (gpsinfo->fixstatus == 0)
+//            {
+//            	gpsinfo = getLastFixedGPSInfo();
+//            	gpsinfo->fixAccuracy = 0;
+//            }
+//            zhd_protocol_send(ZHD_PROTOCOL_GP, gpsinfo);
+//            netRequestClear();
+//        }
         zhdServConn.heartbeattick++;
         if (getTcpNack())
         {
@@ -1091,6 +1104,13 @@ void ntripServerRecv(char *data, uint16_t len)
 		LogMessageWL(DEBUG_ALL, debug, debuglen * 2);
 #endif
 	}
+	else
+	{
+		ntrip_ser_fsm = 1;
+	    ntrip_ser_tick = 0;
+        ntrip_update_tick = 0;
+        LogPrintf(DEBUG_ALL, "Ntrip login success~!!!!!!");
+	}
 }
 
 
@@ -1165,38 +1185,35 @@ void ntripServerConnTask(void)
             socketSendData(NTRIP_LINK, (uint8_t *) sendBuff, strlen(sendBuff));
             ntrip_ser_fsm = 2;
             ntrip_ser_tick = 0;
+            ntrip_update_tick = 0;
 			break;
 		case 1:
-			if (1)
+			if ((ntrip_ser_tick % 120) == 0)
 			{
 				snprintf(sendBuff, 200, "%s\r\n", getGga());
 	            socketSendData(NTRIP_LINK, (uint8_t *) sendBuff, strlen(sendBuff));
-	            ntrip_ser_fsm = 3;
+	            ntrip_ser_tick = 0;
 			}
-//			
-
-//				if ((tick % 10) == 0)
-//				{
-//					snprintf(sendBuff, 200, "%s\r\n", getGga());
-//		            socketSendData(NTRIP_LINK, (uint8_t *) sendBuff, strlen(sendBuff));
-//					tick = 0;
-//				}
-//				tick++;
-
-			break;
-		case 2:
-
-		    ntrip_ser_fsm = 1;
-			
-			break;
-		case 3:
+			ntrip_ser_tick++;
+			//超过60s没收到服务器数据,重新连接
 			ntrip_update_tick++;
 			if (ntrip_update_tick >= 60)
 			{
 				socketDel(NTRIP_LINK);
 			}
 			break;
-		
+		case 2:
+			if (ntrip_ser_tick++ >= 10)
+			{
+				ntrip_ser_fsm = 1;
+				ntrip_ser_tick = 0;
+			}
+			break;
+		default:
+            ntrip_ser_fsm = 0;
+            ntrip_ser_tick = 0;
+            ntrip_update_tick = 0;
+			break;
 	}
 	
 	
@@ -1297,7 +1314,7 @@ uint8_t ntripServerIsReady(void)
         return 0;
     if (socketGetConnStatus(NTRIP_LINK) != SOCKET_CONN_SUCCESS)
         return 0;
-    if (ntrip_ser_fsm != 3)
+    if (ntrip_ser_fsm != 1)
         return 0;
     return 1;
 }

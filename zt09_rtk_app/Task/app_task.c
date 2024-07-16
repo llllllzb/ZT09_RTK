@@ -362,6 +362,9 @@ static void gpsChangeFsmState(uint8_t state)
 @param
 @return
 @note
+Qianxun
+BKR
+
 **************************************************/
 
 void gpsUartRead(uint8_t *msg, uint16_t len)
@@ -370,6 +373,7 @@ void gpsUartRead(uint8_t *msg, uint16_t len)
     static uint16_t size = 0;
     uint16_t i, begin;
     uint16_t relen;
+    int index;
     if (len + size > UART_RECV_BUFF_SIZE)
     {
         size = 0;
@@ -378,6 +382,25 @@ void gpsUartRead(uint8_t *msg, uint16_t len)
     memcpy(gpsRestore + size, msg, relen);
     size += relen;
     begin = 0;
+    if (sysinfo.gpstype == GPS_UNDEFINE)
+    {
+		index = my_getstrindex(msg, "Qianxun", len);
+		if (index < 0)
+		{
+			index = my_getstrindex(msg, "$POLRS", len);
+			if (index >= 0)
+			{
+				sysinfo.gpstype = GPS_SIMPLE;
+			}
+		}
+		else
+		{
+			sysinfo.gpstype = GPS_QIANXUN;
+		}
+    }
+	if (sysinfo.gpstype != GPS_UNDEFINE)
+		LogPrintf(DEBUG_ALL, "Gps type:%d", sysinfo.gpstype);
+    
     for (i = 0; i < size; i++)
     {
         if (gpsRestore[i] == '\n')
@@ -399,6 +422,33 @@ void gpsUartRead(uint8_t *msg, uint16_t len)
 }
 
 /**************************************************
+@bref       Simple修改GPS输出信息
+@param
+@return
+@note
+
+开启:
+GSV:$POLCFGMSG,0,2,1
+
+关闭:
+GSV:$POLCFGMSG,0,2,0
+VTG:$POLCFGMSG,0,3,0
+GST:$POLCFGMSG,0,12,0
+GLL:$POLCFGMSG,0,13,0
+
+保存参数配置
+$POLCFGSAVE
+
+**************************************************/
+static void simpleChangeGpsMsg(void)
+{
+	char param[256] = { 0 };
+	strcpy(param, "$POLCFGMSG,0,2,0\r\n$POLCFGMSG,0,3,0\r\n$POLCFGMSG,0,12,0\r\n$POLCFGMSG,0,13,0\r\n$POLCFGSAVE\r\n");
+    portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
+}
+
+
+/**************************************************
 @bref       千寻修改GPS输出信息
 @param
 @return
@@ -408,7 +458,6 @@ RMC:$QXCFGMSG,1,0,1*0E
 GGA:$QXCFGMSG,1,2,1*0C
 GSA:$QXCFGMSG,1,3,1*0D
 GSV:$QXCFGMSG,1,4,1*0A
-QXANTSTAT:$QXCFGMSG,0,1,1*0E	//用作数据结尾
 
 
 关闭：
@@ -416,50 +465,23 @@ QXDRS:$QXCFGMSG,0,5,0*0B
 RMC:$QXCFGMSG,1,0,0*0F
 GGA:$QXCFGMSG,1,2,0*0D
 GSA:$QXCFGMSG,1,3,0*0C
+GSV:$QXCFGMSG,1,4,0*0B
 
 **************************************************/
 
 static void changeGPSMsg(void)
 {
-    char param[50];
+    char param[256] = { 0 };
     /*RMC*/
-    strcpy(param, "$QXCFGMSG,1,0,1*0E\r\n");
-    portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
-    DelayMs(10);
-    /*GGA*/
-    strcpy(param, "$QXCFGMSG,1,2,1*0C\r\n");
-    portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
-    DelayMs(10);
-    /*GSA*/
-    strcpy(param, "$QXCFGMSG,1,3,1*0D\r\n");
-    portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
-    DelayMs(10);
-//	/*GSV*/
-//	strcpy(param, "$QXCFGMSG,1,4,1*0A\r\n");
-//	portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
-    /*QXDRS*/
-    strcpy(param, "$QXCFGMSG,0,5,0*0B\r\n");
-    portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
-    DelayMs(10);
-    /*QXANTSTAT*/
-    strcpy(param, "$QXCFGMSG,0,1,1*0E\r\n");
+    strcpy(param, "$QXCFGMSG,1,0,1*0E\r\n$QXCFGMSG,1,2,1*0C\r\n$QXCFGMSG,1,3,1*0D\r\n$QXCFGMSG,1,4,0*0B\r\n$QXCFGMSG,0,5,0*0B\r\n");
     portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
     DelayMs(10);
 	/*保存配置参数*/
 	strcpy(param, "$QXCFGSAVE*4A\r\n");
     portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
-    LogMessage(DEBUG_ALL, "gps config msg RMC GGA GSA");
+    LogMessage(DEBUG_ALL, "qianxun gps config msg RMC GGA GSA");
 
 }
-
-/**************************************************
-@bref       千寻注入辅助定位
-@param
-@return
-@note
-$QXCFGRATE,1000,1*79
-
-**************************************************/
 
 /**************************************************
 @bref       千寻修改GPS定位频度
@@ -472,11 +494,19 @@ $QXCFGRATE,1000,1*79
 
 static void changeGPSRate(void)
 {
-    char param[50];
-    strcpy(param, "$QXCFGRATE,1000,1*79\r\n");
-    portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
-    LogMessage(DEBUG_ALL, "gps config rate 1Hz");
-    startTimer(5, changeGPSMsg, 0);
+	char param[50];
+	if (sysinfo.gpstype == GPS_QIANXUN)
+	{
+		strcpy(param, "$QXCFGRATE,1000,1*79\r\n");
+	    portUartSend(&usart0_ctl, (uint8_t *)param, strlen(param));
+	    LogMessage(DEBUG_ALL, "qianxun gps config rate 1Hz");
+	    startTimer(5, changeGPSMsg, 0);
+	}
+    else if (sysinfo.gpstype == GPS_SIMPLE)
+    {
+    	startTimer(5, simpleChangeGpsMsg, 0);
+    	LogMessage(DEBUG_ALL, "simple gps config");
+    }
 }
 
 /**************************************************
@@ -491,7 +521,7 @@ static void gpsOpen(void)
     GPSPWR_ON;
     GPSLNA_ON;
     portUartCfg(APPUSART0, 1, 115200, gpsUartRead);
-    startTimer(23, changeGPSRate, 0);
+    startTimer(25, changeGPSRate, 0);
     sysinfo.gpsUpdatetick = sysinfo.sysTick;
     sysinfo.gpsOnoff = 1;
     gpsChangeFsmState(GPSWATISTATUS);
@@ -833,8 +863,12 @@ static void gpsUplodOnePointTask(void)
         return;
     }
     //runtick = 0;
-    /* 关闭高精度 */
-    if (sysparam.gpsFilterType == GPS_FILTER_CLOSE)
+    /* 关闭高精度/或者高精度服务器未开启 */
+    if (sysparam.ntripEn == 0 || 
+		sysinfo.ntripRequest == 0 || 
+		sysparam.gpsFilterType == GPS_FILTER_CLOSE || 
+		sysparam.ntripServer[0] == 0 || 
+		sysparam.ntripServerPort == 0)
     {
     	//如果gps不是常开则10s后上报
 		if (gpsRequestGet(GPS_REQUEST_ACC_CTL) == 0)
@@ -1087,7 +1121,7 @@ static void motionStateUpdate(motion_src_e src, motionState_e newState)
     if (newState)
     {
         netResetCsqSearch();
-        if (sysparam.gpsuploadgap != 0)
+        if (sysparam.gpsuploadgap != 0 && isWithinSleepTime() <= 0)
         {
             gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
             if (sysparam.gpsuploadgap < GPS_UPLOAD_GAP_MAX)
@@ -1105,12 +1139,11 @@ static void motionStateUpdate(motion_src_e src, motionState_e newState)
     }
     else
     {
-        if (sysparam.gpsuploadgap != 0)
+        if (sysparam.gpsuploadgap != 0 && isWithinSleepTime() <= 0)
         {
             gpsRequestSet(GPS_REQUEST_UPLOAD_ONE);
-            gpsRequestClear(GPS_REQUEST_ACC_CTL);
         }
-        
+        gpsRequestClear(GPS_REQUEST_ACC_CTL);
         terminalAccoff();
         updateRTCtimeRequest();
     }
@@ -1120,6 +1153,7 @@ static void motionStateUpdate(motion_src_e src, motionState_e newState)
                             dynamicParam.startUpCnt, dynamicParam.runTime);
         protocolSend(NORMAL_LINK, PROTOCOL_13, NULL);
         jt808SendToServer(TERMINAL_POSITION, getLastFixedGPSInfo());
+        privateHbtTickReset();
     }
 }
 
@@ -1263,7 +1297,24 @@ static void motionCheckTask(void)
         gsStaticTick = 0;
         return ;
     }
-
+    //mode2 sleep功能
+	if (sysparam.MODE == MODE2)
+	{
+		if (isWithinSleepTime() > 0)
+		{
+			if (gpsRequestGet(GPS_REQUEST_ACC_CTL))
+				gpsRequestClear(GPS_REQUEST_ACC_CTL);	
+		}
+		else
+		{
+			if (getTerminalAccState() && 
+				sysparam.gpsuploadgap != 0 && 
+				gpsRequestGet(GPS_REQUEST_ACC_CTL) == 0)
+			{
+				gpsRequestSet(GPS_REQUEST_ACC_CTL);
+			}
+		}
+	}
     //保持运动状态时，如果gap大于Max，则周期性上报gps
     if (getTerminalAccState() && sysparam.gpsuploadgap >= GPS_UPLOAD_GAP_MAX)
     {
@@ -1763,7 +1814,7 @@ static void mode2SleepQuickly(void)
 		LogPrintf(DEBUG_ALL, "%s==>net_timeout,shutdown", __FUNCTION__);
 	}
 	//查询是否处在休眠时间段
-
+	
 	if (isWithinSleepTime() > 0)
 	{
 		sysinfo.gps_timeout_tick++;
@@ -2126,7 +2177,6 @@ static void modeRun(void)
             //该模式下每隔3分钟记录时长
             sysRunTimeCnt();
             gpsUploadPointToServer();
-            mode2SleepQuickly();
             break;
         case MODE21:
         case MODE23:
@@ -2323,13 +2373,6 @@ static void sysAutoReq(void)
 		//模式2没网络逻辑/或者处于休眠时间段
 		if (isModeDone() && sysparam.MODE == MODE2)
 		{
-			//表示处于休眠时间段
-			if (isWithinSleepTime() > 0)
-			{
-				LogPrintf(DEBUG_ALL, "sleep zZzZzZ..");
-				noNetTick = 60;//立即唤醒
-				return;
-			}
 			noNetTick++;
 			LogPrintf(DEBUG_ALL, "mode2NoNetTick:%d  check net gap:60", noNetTick);
 			if (noNetTick >= 60)

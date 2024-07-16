@@ -31,8 +31,8 @@
 
 #define BLOCK_SIZE		256
 
-#define DB_UPLOAD_MAX_CNT	1
-
+#define DB_UPLOAD_ZHD_MAX_CNT	1
+#define DB_UPLOAD_ZT_MAX_CNT	5
 
 typedef struct
 {

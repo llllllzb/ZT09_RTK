@@ -117,14 +117,12 @@ static void doParamInstruction(ITEM *item, char *message)
     uint8_t debugMsg[20] = { 0 };
     if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
     {
-        byteToHexString(dynamicParam.jt808sn, debugMsg, 8);
-        debugMsg[16] = 0;
-        sprintf(message + strlen(message), "ZHDSN:%s;SN:%s;IP:%s:%u;use:%s;password:%s", debugMsg, dynamicParam.SN, sysparam.zhdServer, 
+        sprintf(message + strlen(message), "ZHDSN:%s;SN:%s;IP:%s:%u;use:%s;password:%s", sysparam.zhdsn, dynamicParam.SN, sysparam.zhdServer, 
         			sysparam.zhdPort, sysparam.zhdUser, sysparam.zhdPassword);
     }
     else if (sysparam.protocol == JT808_PROTOCOL_TYPE)
     {
-		byteToHexString(sysparam.zhdsn, debugMsg, 6);
+		byteToHexString(dynamicParam.jt808sn, debugMsg, 6);
         debugMsg[12] = 0;
         sprintf(message + strlen(message), "JT808SN:%s;SN:%s;IP:%s:%u;", debugMsg, dynamicParam.SN, sysparam.jt808Server,
                 sysparam.jt808Port);
@@ -897,10 +895,11 @@ void doDebugInstrucion(ITEM *item, char *message)
             sysinfo.sysTick / 3600, sysinfo.sysTick % 3600 / 60, sysinfo.sysTick % 60, sysinfo.gpsRequest,
             sysinfo.gpsUpdatetick / 3600, sysinfo.gpsUpdatetick % 3600 / 60, sysinfo.gpsUpdatetick % 60);
     sprintf(message + strlen(message), "hideLogin:%s;", hiddenServerIsReady() ? "Yes" : "No");
-	sprintf(message + strlen(message), "CHARGE_READ:%d pwron:%d", CHARGE_READ, sysparam.pwrOnoff);
-	sprintf(message + strlen(message), "charge:%d debug:%x", sysinfo.doChargeFlag, sysinfo.debug);
-	sprintf(message + strlen(message), "ledtick:%d", sysinfo.ledTick);
-	sprintf(message + strlen(message), "sysfsm:%d", sysinfo.runFsm);
+	sprintf(message + strlen(message), "CHARGE_READ:%d pwron:%d;", CHARGE_READ, sysparam.pwrOnoff);
+	sprintf(message + strlen(message), "charge:%d debug:%x;", sysinfo.doChargeFlag, sysinfo.debug);
+	sprintf(message + strlen(message), "ledtick:%d;", sysinfo.ledTick);
+	sprintf(message + strlen(message), "sysfsm:%d;", sysinfo.runFsm);
+	sprintf(message + strlen(message), "gpstype:%d;", sysinfo.gpstype);
 }
 
 void doACCCTLGNSSInstrucion(ITEM *item, char *message)
@@ -1888,14 +1887,6 @@ static void doSleepInstruction(ITEM *item, char *message)
 			sprintf(message, "Update sleep time %.2d:%.2d ~ %.2d:%.2d", 
 							sysparam.sleep_start / 60, sysparam.sleep_start % 60,
         					sysparam.sleep_end / 60, sysparam.sleep_end % 60);
-        	if (sysparam.MODE == MODE2)
-        	{
-				if (isWithinSleepTime() == 0)
-				{
-					portGsensorCtl(1);
-					portGsensorIntCfg(1);
-				}
-        	}
         	paramSaveAll();
 		}
     }

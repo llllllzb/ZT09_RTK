@@ -87,8 +87,6 @@ void paramDefaultInit(uint8_t level)
 
     }
     strcpy(sysparam.Server, "jzwz.basegps.com");
-    strcpy(sysparam.ntripSource, "RTCM32");
-    strcpy(sysparam.ntripPswd, "VlJTMDE6MTIz");
     sysparam.ServerPort = 9998;
     sysparam.gpsuploadgap = 60;
     sysparam.gapMinutes = 30;
@@ -125,8 +123,8 @@ void paramDefaultInit(uint8_t level)
     sysparam.gpsFilterType = GPS_FILTER_AUTO;
     sysparam.tempcal = -4;
     sysparam.pwrOnoff = 1;
-    sysparam.sleep_start = 1080;	//18:00
-    sysparam.sleep_end   = 360;		//6:00
+    sysparam.sleep_start = 0;
+    sysparam.sleep_end   = 0;	
     dynamicParamSaveAll();
     paramSaveAll();
 }
@@ -142,8 +140,8 @@ void paramInit(void)
    	if (sysparam.otaParamFlag != OTA_PARAM_FLAG)
     {
 		sysparam.otaParamFlag = OTA_PARAM_FLAG;
-		sysparam.sleep_start = 1080;
-    	sysparam.sleep_end   = 360;
+		sysparam.sleep_start = 0;
+    	sysparam.sleep_end   = 0;
 		paramSaveAll();
     }
     sysinfo.lowvoltage = sysparam.lowvoltage / 10.0;

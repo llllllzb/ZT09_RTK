@@ -666,6 +666,8 @@ static uint8_t  gpsFilter(gpsinfo_s *gpsinfo)
     {
         return 0;
     }
+    if (gpsinfo->fixAccuracy == 0)
+    	return 0;
     return 1;
 }
 
@@ -834,7 +836,7 @@ static int8_t calculateDistanceOfPoint(void)
     distance = calculateTheDistanceBetweenTwoPonits(gpsinfo->latitude, gpsinfo->longtitude, lastuploadgpsinfo.latitude,
                lastuploadgpsinfo.longtitude) * 1000;
     //sprintf(debug, "lastlat:%.2f, lastlon:%.2f lastgpsticksec:%d nowlat:%.2f, nowlon:%.2f, nowgpstick:%d distance of point =%.2fm", lastuploadgpsinfo.latitude, lastuploadgpsinfo.longtitude, lastuploadgpsinfo.gpsticksec, gpsinfo->latitude,  gpsinfo->longtitude, gpsinfo->gpsticksec, distance);
-    LogMessage(DEBUG_ALL, debug);
+    //LogMessage(DEBUG_ALL, debug);
     if (distance > sysparam.fence)
     {
         return 1;

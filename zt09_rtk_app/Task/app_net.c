@@ -855,7 +855,8 @@ void netRequestClear(void)
 			centralPointGet(&newgps);
 			updateHistoryGpsTime(&newgps);
 			protocolSend(NORMAL_LINK, PROTOCOL_12, &newgps);
-			jt808SendToServer(TERMINAL_POSITION,   &newgps);
+			jt808SendToServer(TERMINAL_POSITION, &newgps);
+			zhd_protocol_send(ZHD_PROTOCOL_GP, &newgps);
 		}	
 		sysinfo.netRequest = 0;
 		LogPrintf(DEBUG_ALL, "netRequestClear==>OK");

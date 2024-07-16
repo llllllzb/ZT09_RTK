@@ -140,6 +140,7 @@ typedef struct
     uint16_t moduleFsmTick;
     uint16_t net_timeout_tick;
     uint16_t gps_timeout_tick;
+    uint8_t gpstype;
 } SystemInfoTypedef;
 
 extern SystemInfoTypedef sysinfo;

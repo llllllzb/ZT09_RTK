@@ -969,8 +969,16 @@ void gpsRestoreUpload(void)
     uint8 readBuff[400], gpscount, i;
     char dest[1024];
     gpsRestore_s *gpsinfo;
-    
-    readlen = dbCircularRead(readBuff, sizeof(gpsRestore_s) * DB_UPLOAD_MAX_CNT);
+    uint8_t upload_cnt;
+    if (sysparam.protocol == ZHD_PROTOCOL_TYPE)
+    {
+		upload_cnt = DB_UPLOAD_ZHD_MAX_CNT;
+    }
+    else
+    {
+		upload_cnt = DB_UPLOAD_ZT_MAX_CNT;
+    }
+    readlen = dbCircularRead(readBuff, sizeof(gpsRestore_s) * upload_cnt);
     if (readlen == 0)
         return;
     LogPrintf(DEBUG_ALL, "dbread:%d", readlen);

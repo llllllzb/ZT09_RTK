@@ -19,6 +19,11 @@
 
 #define GPS_REQUEST_ALL					0xFFFFFFFF
 
+#define GPS_UNDEFINE					0
+#define GPS_QIANXUN						1
+#define GPS_SIMPLE						2
+#define GPS_UNKNOW						3
+
 #define MODULE_REQUEST_NONE				0
 #define MODULE_REQUEST_CLOSE			1
 #define MODULE_REQUEST_OPEN				2
